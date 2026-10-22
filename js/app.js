@@ -104,15 +104,19 @@ class VocabSwipeApp {
     this.showCurrentWord();
   }
 
-  async startConfirmationTest() {
-    // 100問の確認テストデッキを生成
+    async startConfirmationTest() {
+    const pool = this.allWords.filter(w => w.status === 'mastered' || w.status === 'weekly_pending');
+    if (pool.length === 0) {
+      alert('まだ合格した単語がありません。まずは日々の「翌朝の復習テスト」で単語を合格させましょう！');
+      return;
+    }
+    const testCount = Math.min(pool.length, 100);
     this.currentMode = AppMode.CONFIRMATION_TEST;
-    this.deck = engine.generateConfirmationTestDeck(this.allWords, 100);
+    this.deck = engine.generateConfirmationTestDeck(this.allWords, testCount);
 
     const wordMap = new Map(this.allWords.map(w => [w.id, w]));
     this.queue = this.deck.wordIds.map(id => wordMap.get(id)).filter(Boolean);
 
-    // カード画面へ自動切り替え
     this.switchView('study');
     this.updateModeUI();
     this.currentIndex = 0;
@@ -156,6 +160,16 @@ class VocabSwipeApp {
     this.statCountLearning.textContent = learning;
     this.statCountUnseen.textContent = unseen;
     this.dashCarryoverCount.textContent = `${carryovers.length} 語`;
+    // 確認テストボタンの状態更新
+    if (mastered === 0) {
+      this.btnStartConfirmTest.disabled = true;
+      this.btnStartConfirmTest.innerHTML = '<span>🔒</span> 合格した単語がまだありません (0語)';
+    } else {
+      this.btnStartConfirmTest.disabled = false;
+      const testCount = Math.min(mastered, 100);
+      this.btnStartConfirmTest.innerHTML = `<span>🚀</span> 合格単語から確認テスト（${testCount}問）を開始`;
+    }
+
   }
 
   showCurrentWord() {

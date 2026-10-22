@@ -87,10 +87,18 @@ export class MethodEngine {
    * これまでに覚えた単語から100問の確認テストデッキを生成
    */
   generateConfirmationTestDeck(allWords, limit = 100) {
-    // 習得済み (mastered または weekly_pending) の単語
+    // 実際に朝テスト・日曜テストで合格した単語のみを対象にする
     const pool = allWords.filter(w => w.status === 'mastered' || w.status === 'weekly_pending');
-    const targetWords = pool.length > 0 ? pool : allWords; // まだ習得がなければ全単語から
-    const ids = targetWords.map(w => w.id);
+    if (pool.length === 0) {
+      return {
+        date: this.getLogicalDate(),
+        mode: AppMode.CONFIRMATION_TEST,
+        wordIds: [],
+        results: {}
+      };
+    }
+
+    const ids = pool.map(w => w.id);
     this.shuffle(ids);
 
     const selectedIds = ids.slice(0, limit);
