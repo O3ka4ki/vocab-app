@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>VocabSwipe - 100単語スワイプ学習</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#090d16">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Top Navigation & Mode -->
+  <header class="top-nav">
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <span class="brand-text">⚡ Vocab100</span>
+      <span class="mode-badge" id="mode-badge">日中スキマ学習</span>
+    </div>
+
+    <!-- Mode Selector -->
+    <div class="mode-selector">
+      <button class="mode-btn active" data-mode="day_study">日中</button>
+      <button class="mode-btn" data-mode="night_test">夜テスト</button>
+      <button class="mode-btn" data-mode="morning_test">翌朝</button>
+      <button class="mode-btn" data-mode="sunday_review">日曜</button>
+    </div>
+  </header>
+
+  <!-- Progress Bar -->
+  <div class="progress-container">
+    <div class="progress-bar" id="progress-bar"></div>
+  </div>
+
+  <!-- Main Card Stage -->
+  <main class="card-stage">
+    
+    <div class="swipe-card" id="swipe-card">
+      
+      <!-- Stamps -->
+      <div class="stamp stamp-pass">◯ 分かる</div>
+      <div class="stamp stamp-fail">✕ 分からない</div>
+
+      <!-- Top Row -->
+      <div class="card-top">
+        <span class="card-num" id="card-num">1 / 100</span>
+        <button class="btn-audio" id="btn-audio" title="発音を聞く">🔊</button>
+      </div>
+
+      <!-- Center (English & Meaning) -->
+      <div class="card-center">
+        <div class="word-text" id="word-text">resilient</div>
+        <div class="phonetic-text" id="phonetic-text">/rɪˈzɪl.jənt/</div>
+
+        <!-- Hidden until tapped -->
+        <div class="meaning-container" id="meaning-container" style="display: none;">
+          <div class="meaning-text" id="meaning-text">立ち直りが早い</div>
+          <div class="example-box" id="example-box"></div>
+        </div>
+      </div>
+
+      <!-- Bottom Hint -->
+      <div class="card-bottom-hint">
+        タップで意味表示 ｜ 👈 ✕ 分からない ｜ 👉 ◯ 分かる
+      </div>
+
+    </div>
+
+    <!-- Complete Overlay -->
+    <div class="complete-overlay" id="complete-overlay">
+      <div class="complete-icon">🎉</div>
+      <h2 class="complete-title">セッション完了！</h2>
+      <p class="complete-desc" id="complete-desc"></p>
+      <button class="btn-action" id="btn-next-session">もう一度回す</button>
+    </div>
+
+  </main>
+
+  <!-- Bottom Fast-Action Buttons -->
+  <footer class="bottom-controls">
+    <button class="circle-btn btn-fail" id="btn-fail" title="分からない (左スワイプ)">
+      ✕
+      <span class="btn-label">忘れた</span>
+    </button>
+    
+    <button class="circle-btn btn-flip-quick" id="btn-flip" title="めくる">
+      👁️
+      <span class="btn-label">めくる</span>
+    </button>
+
+    <button class="circle-btn btn-pass" id="btn-pass" title="分かる (右スワイプ)">
+      ◯
+      <span class="btn-label">分かる</span>
+    </button>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
