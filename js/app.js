@@ -3,7 +3,7 @@ import { engine, AppMode } from './engine.js';
 import { SwipeController } from './swipe.js';
 import { speechService } from './speech.js';
 
-const DATA_VERSION = 14;
+const DATA_VERSION = 15;
 
 class VocabSwipeApp {
   constructor() {
