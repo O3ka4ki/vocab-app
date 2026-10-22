@@ -3,7 +3,7 @@ import { engine, AppMode } from './engine.js';
 import { SwipeController } from './swipe.js';
 import { speechService } from './speech.js';
 
-const DATA_VERSION = 4; // 新しい50単語リストのバージョン
+const DATA_VERSION = 5; // 新しい50単語リストのバージョン
 
 class VocabSwipeApp {
   constructor() {
