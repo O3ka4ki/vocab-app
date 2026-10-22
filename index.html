@@ -21,8 +21,13 @@
       </button>
     </div>
 
-    <!-- Mode Badge -->
+    <!-- Sound Toggle, Mode Badge & Reset Timer -->
     <div style="display: flex; align-items: center; gap: 6px;">
+      <button class="sound-toggle-btn" id="btn-sound-toggle" title="音声ON/OFF切り替え（音無しモード）">
+        <span id="sound-toggle-icon">🔊</span>
+        <span class="sound-toggle-text" id="sound-toggle-text">音あり</span>
+      </button>
+      <span class="timer-badge" id="header-timer-badge" style="display: none;" title="30分リセットまでの残り時間">⏳ <span id="header-timer-text">30:00</span></span>
       <span class="mode-badge" id="mode-badge" title="タップしてモード切り替え">日中スキマ学習 ▾</span>
     </div>
   </header>
@@ -62,10 +67,29 @@
 
       <!-- Complete Overlay -->
       <div class="complete-overlay" id="complete-overlay">
-        <div class="complete-icon">🎉</div>
-        <h2 class="complete-title">セッション完了！</h2>
+        <div class="complete-icon" id="complete-icon">🎉</div>
+        <h2 class="complete-title" id="complete-title">セッション完了！</h2>
         <p class="complete-desc" id="complete-desc"></p>
-        <button class="btn-action" id="btn-next-session">もう一度回す</button>
+
+        <!-- 間違えた単語リスト（日中スキマ学習用） -->
+        <div class="wrong-words-section" id="wrong-words-section" style="display: none;">
+          <div class="wrong-words-header">
+            <span>⚠️ 間違えた単語（要復習）</span>
+            <span class="wrong-words-count" id="wrong-words-count">0 語</span>
+          </div>
+          <div class="wrong-words-list" id="wrong-words-list"></div>
+        </div>
+
+        <!-- 30分リセットタイマー表示 -->
+        <div class="timer-indicator" id="timer-indicator" style="display: none;">
+          <span>⏳ 30分リセットまで: <strong id="timer-countdown">30:00</strong></span>
+        </div>
+
+        <!-- アクションボタン群 -->
+        <div class="complete-actions" id="complete-actions">
+          <button class="btn-action" id="btn-next-session">次へ進む</button>
+          <button class="btn-action-secondary" id="btn-reset-full" style="display: none;">100問を最初からやり直す</button>
+        </div>
       </div>
 
     </main>
@@ -78,7 +102,12 @@
       </button>
       
       <button class="circle-btn btn-flip-quick" id="btn-flip" title="めくる">
-        👁️
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+          <path d="M21 3v5h-5"/>
+          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+          <path d="M3 21v-5h5"/>
+        </svg>
         <span class="btn-label">めくる</span>
       </button>
 
