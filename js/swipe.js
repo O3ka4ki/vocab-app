@@ -3,6 +3,8 @@
  * Pointer Events に一本化し、タップの二重発火・誤動作を完全防止
  */
 
+import { speechService } from './speech.js';
+
 export class SwipeController {
   constructor(cardElement, onSwipeLeft, onSwipeRight, onClickCard) {
     this.card = cardElement;
@@ -26,6 +28,8 @@ export class SwipeController {
     this.card.style.touchAction = 'none';
 
     this.card.addEventListener('pointerdown', (e) => {
+      speechService.unlock();
+
       // 音声再生ボタンクリック時はカードスワイプを無効化
       if (e.target.closest('.btn-audio')) return;
 
@@ -139,6 +143,7 @@ export class SwipeController {
   }
 
   triggerSwipe(direction) {
+    speechService.unlock();
     this.card.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
     if (direction === 'right') {
       this.card.style.transform = 'translate3d(120vw, 0, 0) rotate(30deg)';

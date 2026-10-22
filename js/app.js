@@ -272,11 +272,6 @@ class VocabSwipeApp {
 
     this.completeOverlay.style.display = 'none';
 
-    // 次のタップに備えて発音オブジェクトを即座に事前準備（レイテンシゼロ化）
-    if (item && item.word) {
-      speechService.preload(item.word);
-    }
-
     if (autoSpeak && item && item.word) {
       speechService.speak(item.word);
     }
@@ -285,7 +280,7 @@ class VocabSwipeApp {
   toggleMeaning() {
     this.isRevealed = !this.isRevealed;
 
-    // めくった瞬間にレイテンシなく最速で発話
+    // めくった瞬間に最速で発話
     if (this.isRevealed) {
       const item = this.queue[this.currentIndex];
       if (item && item.word) {
@@ -296,7 +291,7 @@ class VocabSwipeApp {
     this.meaningContainer.style.display = this.isRevealed ? 'flex' : 'none';
   }
 
-  async handleAnswer(isPass) {
+  handleAnswer(isPass) {
     if (this.currentIndex >= this.queue.length) return;
     const currentItem = this.queue[this.currentIndex];
 
@@ -305,6 +300,15 @@ class VocabSwipeApp {
     this.deck.results[currentItem.id] = isPass;
     this.currentRoundResults[currentItem.id] = isPass;
 
+    // 1. 【最優先・ゼロ遅延】即座に次のカードへ進めて表示＆音声を流す
+    this.currentIndex++;
+    this.showCurrentWord(true);
+
+    // 2. DBへの書き込み処理は裏側で非同期に実行（UIや音声を一切待たせない）
+    this.persistAnswerProgress(currentItem, isPass);
+  }
+
+  async persistAnswerProgress(currentItem, isPass) {
     // 日中スキマ学習: 最初の1問回答時に開始時刻をセット（30分タイマースタート）
     if (this.currentMode === AppMode.DAY_STUDY) {
       const startedAt = await db.getState('day_study_started_at', null);
@@ -312,6 +316,8 @@ class VocabSwipeApp {
         await db.setState('day_study_started_at', Date.now());
         this.updateTimerDisplay();
       }
+      await db.setState('day_study_current_index', this.currentIndex);
+      await db.setState('day_study_round_results', this.currentRoundResults);
     }
 
     if (this.currentMode === AppMode.NIGHT_TEST) {
@@ -339,13 +345,6 @@ class VocabSwipeApp {
     if (this.currentMode !== AppMode.CONFIRMATION_TEST) {
       await db.setState(`deck_${logicalDate}`, this.deck);
     }
-
-    this.currentIndex++;
-    if (this.currentMode === AppMode.DAY_STUDY) {
-      await db.setState('day_study_current_index', this.currentIndex);
-      await db.setState('day_study_round_results', this.currentRoundResults);
-    }
-    this.showCurrentWord(true);
   }
 
   async handleSessionComplete() {
