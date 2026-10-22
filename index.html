@@ -10,88 +10,145 @@
 </head>
 <body>
 
-  <!-- Top Navigation & Mode -->
+  <!-- Top Navigation & View Switcher -->
   <header class="top-nav">
-    <div style="display: flex; align-items: center; gap: 6px;">
-      <span class="brand-text">⚡ Vocab100</span>
-      <span class="mode-badge" id="mode-badge">日中スキマ学習</span>
+    <div class="view-tabs">
+      <button class="view-tab-btn active" id="tab-btn-study">
+        <span>⚡</span> カード学習
+      </button>
+      <button class="view-tab-btn" id="tab-btn-progress">
+        <span>📊</span> 全体進捗
+      </button>
     </div>
 
-    <!-- Mode Selector -->
-    <div class="mode-selector">
-      <button class="mode-btn active" data-mode="day_study">日中</button>
-      <button class="mode-btn" data-mode="night_test">夜テスト</button>
-      <button class="mode-btn" data-mode="morning_test">翌朝</button>
-      <button class="mode-btn" data-mode="sunday_review">日曜</button>
+    <!-- Mode Badge -->
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <span class="mode-badge" id="mode-badge">日中スキマ学習</span>
     </div>
   </header>
 
-  <!-- Progress Bar -->
-  <div class="progress-container">
+  <!-- Progress Bar (Only visible in Study View) -->
+  <div class="progress-container" id="study-progress-container">
     <div class="progress-bar" id="progress-bar"></div>
   </div>
 
-  <!-- Main Card Stage -->
-  <main class="card-stage">
-    
-    <div class="swipe-card" id="swipe-card">
+  <!-- VIEW 1: STUDY (Default: 開いて即学習できる画面) -->
+  <div class="view-container" id="view-study">
+    <main class="card-stage">
       
-      <!-- Stamps -->
-      <div class="stamp stamp-pass">◯ 分かる</div>
-      <div class="stamp stamp-fail">✕ 分からない</div>
+      <div class="swipe-card" id="swipe-card">
+        <div class="stamp stamp-pass">◯ 分かる</div>
+        <div class="stamp stamp-fail">✕ 分からない</div>
 
-      <!-- Top Row -->
-      <div class="card-top">
-        <span class="card-num" id="card-num">1 / 100</span>
-        <button class="btn-audio" id="btn-audio" title="発音を聞く">🔊</button>
-      </div>
+        <div class="card-top">
+          <span class="card-num" id="card-num">1 / 100</span>
+          <button class="btn-audio" id="btn-audio" title="発音を聞く">🔊</button>
+        </div>
 
-      <!-- Center (English & Meaning) -->
-      <div class="card-center">
-        <div class="word-text" id="word-text">resilient</div>
-        <div class="phonetic-text" id="phonetic-text">/rɪˈzɪl.jənt/</div>
+        <div class="card-center">
+          <div class="word-text" id="word-text">resilient</div>
+          <div class="phonetic-text" id="phonetic-text">/rɪˈzɪl.jənt/</div>
 
-        <!-- Hidden until tapped -->
-        <div class="meaning-container" id="meaning-container" style="display: none;">
-          <div class="meaning-text" id="meaning-text">立ち直りが早い</div>
-          <div class="example-box" id="example-box"></div>
+          <div class="meaning-container" id="meaning-container" style="display: none;">
+            <div class="meaning-text" id="meaning-text">立ち直りが早い</div>
+            <div class="example-box" id="example-box"></div>
+          </div>
+        </div>
+
+        <div class="card-bottom-hint">
+          タップで意味表示 ｜ 👈 ✕ 分からない ｜ 👉 ◯ 分かる
         </div>
       </div>
 
-      <!-- Bottom Hint -->
-      <div class="card-bottom-hint">
-        タップで意味表示 ｜ 👈 ✕ 分からない ｜ 👉 ◯ 分かる
+      <!-- Complete Overlay -->
+      <div class="complete-overlay" id="complete-overlay">
+        <div class="complete-icon">🎉</div>
+        <h2 class="complete-title">セッション完了！</h2>
+        <p class="complete-desc" id="complete-desc"></p>
+        <button class="btn-action" id="btn-next-session">もう一度回す</button>
+      </div>
+
+    </main>
+
+    <!-- Bottom Controls -->
+    <footer class="bottom-controls">
+      <button class="circle-btn btn-fail" id="btn-fail" title="分からない (左スワイプ)">
+        ✕
+        <span class="btn-label">忘れた</span>
+      </button>
+      
+      <button class="circle-btn btn-flip-quick" id="btn-flip" title="めくる">
+        👁️
+        <span class="btn-label">めくる</span>
+      </button>
+
+      <button class="circle-btn btn-pass" id="btn-pass" title="分かる (右スワイプ)">
+        ◯
+        <span class="btn-label">分かる</span>
+      </button>
+    </footer>
+  </div>
+
+  <!-- VIEW 2: PROGRESS DASHBOARD (全体進捗 ＆ 確認テスト100問) -->
+  <div class="view-container" id="view-progress">
+    <div class="dashboard-container">
+      
+      <!-- Overall Progress Hero Card -->
+      <div class="progress-hero-card">
+        <div class="hero-top">
+          <span class="hero-title">全体の習得進捗</span>
+          <span class="hero-percentage" id="dash-percentage">0%</span>
+        </div>
+        <div class="hero-bar-track">
+          <div class="hero-bar-fill" id="dash-progress-fill"></div>
+        </div>
+        <div class="hero-stats-row">
+          <span>習得済み: <strong id="dash-mastered-count" style="color: #34d399;">0</strong> 単語</span>
+          <span>全 <strong id="dash-total-count">0</strong> 単語中</span>
+        </div>
+      </div>
+
+      <!-- 3-Status Breakdown Grid -->
+      <div class="status-grid">
+        <div class="status-card card-mastered">
+          <span class="status-card-num" id="stat-count-mastered">0</span>
+          <span class="status-card-label">✅ 習得済み</span>
+        </div>
+        <div class="status-card card-learning">
+          <span class="status-card-num" id="stat-count-learning">0</span>
+          <span class="status-card-label">🔥 学習中・持越</span>
+        </div>
+        <div class="status-card card-unseen">
+          <span class="status-card-num" id="stat-count-unseen">0</span>
+          <span class="status-card-label">💤 未着手</span>
+        </div>
+      </div>
+
+      <!-- Carryover Notice -->
+      <div class="carryover-alert" id="dash-carryover-box">
+        <span>⚠️ 明日のデッキへスライド予定</span>
+        <strong id="dash-carryover-count">0 語</strong>
+      </div>
+
+      <!-- 100-Question Confirmation Test Card -->
+      <div class="test-hero-card">
+        <div class="test-card-header">
+          <span class="test-card-icon">🎯</span>
+          <div>
+            <h3 class="test-card-title">今までの確認テスト（100問）</h3>
+          </div>
+        </div>
+        <p class="test-card-desc">
+          これまでに合格した単語プールからランダムに100問を出題します。<br>
+          <strong>※ここで間違えた単語は、明日の通常100単語デッキへ自動的にスライド（再組み込み）されます。</strong>
+        </p>
+        <button class="btn-start-test" id="btn-start-confirm-test">
+          <span>🚀</span> 確認テスト（100問）を開始
+        </button>
       </div>
 
     </div>
-
-    <!-- Complete Overlay -->
-    <div class="complete-overlay" id="complete-overlay">
-      <div class="complete-icon">🎉</div>
-      <h2 class="complete-title">セッション完了！</h2>
-      <p class="complete-desc" id="complete-desc"></p>
-      <button class="btn-action" id="btn-next-session">もう一度回す</button>
-    </div>
-
-  </main>
-
-  <!-- Bottom Fast-Action Buttons -->
-  <footer class="bottom-controls">
-    <button class="circle-btn btn-fail" id="btn-fail" title="分からない (左スワイプ)">
-      ✕
-      <span class="btn-label">忘れた</span>
-    </button>
-    
-    <button class="circle-btn btn-flip-quick" id="btn-flip" title="めくる">
-      👁️
-      <span class="btn-label">めくる</span>
-    </button>
-
-    <button class="circle-btn btn-pass" id="btn-pass" title="分かる (右スワイプ)">
-      ◯
-      <span class="btn-label">分かる</span>
-    </button>
-  </footer>
+  </div>
 
   <script type="module" src="js/app.js"></script>
 </body>

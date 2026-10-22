@@ -3,7 +3,7 @@ import { engine, AppMode } from './engine.js';
 import { SwipeController } from './swipe.js';
 import { speechService } from './speech.js';
 
-const DATA_VERSION = 9; // 新しい50単語リストのバージョン
+const DATA_VERSION = 9;
 
 class VocabSwipeApp {
   constructor() {
@@ -19,6 +19,25 @@ class VocabSwipeApp {
   }
 
   initElements() {
+    // Views & Tabs
+    this.tabBtnStudy = document.getElementById('tab-btn-study');
+    this.tabBtnProgress = document.getElementById('tab-btn-progress');
+    this.viewStudy = document.getElementById('view-study');
+    this.viewProgress = document.getElementById('view-progress');
+    this.studyProgressContainer = document.getElementById('study-progress-container');
+
+    // Dashboard Elements
+    this.dashPercentage = document.getElementById('dash-percentage');
+    this.dashProgressFill = document.getElementById('dash-progress-fill');
+    this.dashMasteredCount = document.getElementById('dash-mastered-count');
+    this.dashTotalCount = document.getElementById('dash-total-count');
+    this.statCountMastered = document.getElementById('stat-count-mastered');
+    this.statCountLearning = document.getElementById('stat-count-learning');
+    this.statCountUnseen = document.getElementById('stat-count-unseen');
+    this.dashCarryoverCount = document.getElementById('dash-carryover-count');
+    this.btnStartConfirmTest = document.getElementById('btn-start-confirm-test');
+
+    // Card Elements
     this.card = document.getElementById('swipe-card');
     this.cardNum = document.getElementById('card-num');
     this.wordText = document.getElementById('word-text');
@@ -30,7 +49,6 @@ class VocabSwipeApp {
 
     this.progressBar = document.getElementById('progress-bar');
     this.modeBadge = document.getElementById('mode-badge');
-    this.modeBtns = document.querySelectorAll('.mode-btn');
 
     this.btnFail = document.getElementById('btn-fail');
     this.btnPass = document.getElementById('btn-pass');
@@ -52,7 +70,6 @@ class VocabSwipeApp {
   async start() {
     await db.init();
     
-    // データバージョンの確認（新しい単語リストへの自動マイグレーション）
     const savedVer = await db.getState('data_version', 1);
     if (savedVer < DATA_VERSION) {
       await db.clearAllWords();
@@ -68,6 +85,7 @@ class VocabSwipeApp {
 
     this.currentMode = engine.getRecommendedMode();
     await this.setupDeck();
+    this.updateDashboardStats();
   }
 
   async setupDeck() {
@@ -75,14 +93,27 @@ class VocabSwipeApp {
     const existingDeck = await db.getState(`deck_${logicalDate}`, null);
     const carryovers = await db.getState('carryover_ids', []);
 
-    // デッキ生成
     this.deck = engine.generateDailyDeck(this.allWords, carryovers, existingDeck);
     await db.setState(`deck_${logicalDate}`, this.deck);
 
-    // キュー作成
     const wordMap = new Map(this.allWords.map(w => [w.id, w]));
     this.queue = this.deck.wordIds.map(id => wordMap.get(id)).filter(Boolean);
 
+    this.updateModeUI();
+    this.currentIndex = 0;
+    this.showCurrentWord();
+  }
+
+  async startConfirmationTest() {
+    // 100問の確認テストデッキを生成
+    this.currentMode = AppMode.CONFIRMATION_TEST;
+    this.deck = engine.generateConfirmationTestDeck(this.allWords, 100);
+
+    const wordMap = new Map(this.allWords.map(w => [w.id, w]));
+    this.queue = this.deck.wordIds.map(id => wordMap.get(id)).filter(Boolean);
+
+    // カード画面へ自動切り替え
+    this.switchView('study');
     this.updateModeUI();
     this.currentIndex = 0;
     this.showCurrentWord();
@@ -93,13 +124,38 @@ class VocabSwipeApp {
       [AppMode.DAY_STUDY]: '☀️ 日中スキマ学習',
       [AppMode.NIGHT_TEST]: '🌙 夜のテスト (10秒)',
       [AppMode.MORNING_TEST]: '🌅 翌朝の復習テスト',
-      [AppMode.SUNDAY_REVIEW]: '👑 日曜総復習テスト'
+      [AppMode.SUNDAY_REVIEW]: '👑 日曜総復習テスト',
+      [AppMode.CONFIRMATION_TEST]: '🎯 実力確認テスト (100問)'
     };
     this.modeBadge.textContent = labels[this.currentMode] || '学習中';
+  }
 
-    this.modeBtns.forEach(b => {
-      b.classList.toggle('active', b.dataset.mode === this.currentMode);
-    });
+  async updateDashboardStats() {
+    this.allWords = await db.getAllWords();
+    const carryovers = await db.getState('carryover_ids', []);
+
+    let mastered = 0;
+    let learning = 0;
+    let unseen = 0;
+
+    for (const w of this.allWords) {
+      if (w.status === 'mastered' || w.status === 'weekly_pending') mastered++;
+      else if (w.status === 'learning' || carryovers.includes(w.id)) learning++;
+      else unseen++;
+    }
+
+    const total = this.allWords.length;
+    const percentage = total > 0 ? Math.round((mastered / total) * 100) : 0;
+
+    this.dashPercentage.textContent = `${percentage}%`;
+    this.dashProgressFill.style.width = `${percentage}%`;
+    this.dashMasteredCount.textContent = mastered;
+    this.dashTotalCount.textContent = total;
+
+    this.statCountMastered.textContent = mastered;
+    this.statCountLearning.textContent = learning;
+    this.statCountUnseen.textContent = unseen;
+    this.dashCarryoverCount.textContent = `${carryovers.length} 語`;
   }
 
   showCurrentWord() {
@@ -143,7 +199,7 @@ class VocabSwipeApp {
     if (this.currentIndex >= this.queue.length) return;
     const currentItem = this.queue[this.currentIndex];
 
-    const logicalDate = engine.getLogicalDate();
+    // 結果の記録
     if (!this.deck.results) this.deck.results = {};
     this.deck.results[currentItem.id] = isPass;
 
@@ -155,7 +211,23 @@ class VocabSwipeApp {
       this.deck.morningResults[currentItem.id] = isPass;
     }
 
-    await db.setState(`deck_${logicalDate}`, this.deck);
+    // ★重要: 確認テストで間違えた場合、即座に明日の持ち越しキューへ移送
+    if (this.currentMode === AppMode.CONFIRMATION_TEST) {
+      if (!isPass) {
+        const carryovers = await db.getState('carryover_ids', []);
+        if (!carryovers.includes(currentItem.id)) {
+          carryovers.unshift(currentItem.id);
+          await db.setState('carryover_ids', carryovers);
+        }
+        currentItem.status = 'learning';
+        await db.saveWord(currentItem);
+      }
+    }
+
+    const logicalDate = engine.getLogicalDate();
+    if (this.currentMode !== AppMode.CONFIRMATION_TEST) {
+      await db.setState(`deck_${logicalDate}`, this.deck);
+    }
 
     this.currentIndex++;
     this.showCurrentWord();
@@ -165,7 +237,18 @@ class VocabSwipeApp {
     this.progressBar.style.width = '100%';
     this.completeOverlay.style.display = 'flex';
 
-    if (this.currentMode === AppMode.MORNING_TEST) {
+    if (this.currentMode === AppMode.CONFIRMATION_TEST) {
+      // 確認テスト完了
+      const failed = [];
+      const passed = [];
+      for (const [widStr, ok] of Object.entries(this.deck.results || {})) {
+        if (!ok) failed.push(parseInt(widStr, 10));
+        else passed.push(parseInt(widStr, 10));
+      }
+
+      this.completeDesc.innerHTML = `実力テスト完了！<br>正解: <strong>${passed.length}</strong> 問<br>間違えた <strong>${failed.length}</strong> 語は明日の100単語デッキに組み込みました！`;
+      await this.updateDashboardStats();
+    } else if (this.currentMode === AppMode.MORNING_TEST) {
       const failedIds = [];
       const passedIds = [];
       for (const [widStr, ok] of Object.entries(this.deck.morningResults || {})) {
@@ -185,22 +268,38 @@ class VocabSwipeApp {
       }
 
       this.completeDesc.innerHTML = `朝のテスト完了！<br>合格: <strong>${passedIds.length}</strong> 単語<br>未記憶(翌日へスライド): <strong>${failedIds.length}</strong> 単語`;
-    } else if (this.currentMode === AppMode.SUNDAY_REVIEW) {
-      const failedIds = [];
-      const passedIds = [];
-      for (const [widStr, ok] of Object.entries(this.deck.results || {})) {
-        const wid = parseInt(widStr, 10);
-        if (!ok) failedIds.push(wid);
-        else passedIds.push(wid);
-      }
-      await db.setState('carryover_ids', failedIds);
-      this.completeDesc.innerHTML = `日曜総復習完了！<br>完全習得: <strong>${passedIds.length}</strong> 単語<br>忘却(月曜へスライド): <strong>${failedIds.length}</strong> 単語`;
+      await this.updateDashboardStats();
     } else {
       this.completeDesc.innerHTML = `全単語のチェックが完了しました！<br>テンポよく反復して脳に定着させましょう。`;
     }
   }
 
+  switchView(viewName) {
+    if (viewName === 'progress') {
+      this.viewStudy.style.display = 'none';
+      this.viewProgress.style.display = 'block';
+      this.studyProgressContainer.style.display = 'none';
+      this.tabBtnStudy.classList.remove('active');
+      this.tabBtnProgress.classList.add('active');
+      this.updateDashboardStats();
+    } else {
+      this.viewStudy.style.display = 'flex';
+      this.viewProgress.style.display = 'none';
+      this.studyProgressContainer.style.display = 'block';
+      this.tabBtnStudy.classList.add('active');
+      this.tabBtnProgress.classList.remove('active');
+    }
+  }
+
   bindEvents() {
+    // タブ切り替え
+    this.tabBtnStudy.addEventListener('click', () => this.switchView('study'));
+    this.tabBtnProgress.addEventListener('click', () => this.switchView('progress'));
+
+    // 確認テスト開始ボタン
+    this.btnStartConfirmTest.addEventListener('click', () => this.startConfirmationTest());
+
+    // カード操作
     this.btnFail.addEventListener('click', () => this.swipe.triggerSwipe('left'));
     this.btnPass.addEventListener('click', () => this.swipe.triggerSwipe('right'));
     this.btnFlip.addEventListener('click', () => this.toggleMeaning());
@@ -212,18 +311,10 @@ class VocabSwipeApp {
     });
 
     window.addEventListener('keydown', (e) => {
+      if (this.viewStudy.style.display === 'none') return;
       if (e.code === 'ArrowLeft') this.swipe.triggerSwipe('left');
       else if (e.code === 'ArrowRight') this.swipe.triggerSwipe('right');
       else if (e.code === 'Space' || e.code === 'Enter') this.toggleMeaning();
-    });
-
-    this.modeBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.currentMode = btn.dataset.mode;
-        this.updateModeUI();
-        this.currentIndex = 0;
-        this.showCurrentWord();
-      });
     });
 
     this.btnNextSession.addEventListener('click', () => {
@@ -239,7 +330,6 @@ class VocabSwipeApp {
       const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean).slice(1);
       
       const parsed = lines.map((line, idx) => {
-        // カンマ区切り（クォート考慮）
         const cols = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
         const clean = (s) => (s || '').replace(/^"|"$/g, '').trim();
         return {
