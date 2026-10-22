@@ -3,6 +3,8 @@ import { engine, AppMode } from './engine.js';
 import { SwipeController } from './swipe.js';
 import { speechService } from './speech.js';
 
+const DATA_VERSION = 2; // 新しい50単語リストのバージョン
+
 class VocabSwipeApp {
   constructor() {
     this.allWords = [];
@@ -38,22 +40,30 @@ class VocabSwipeApp {
     this.completeDesc = document.getElementById('complete-desc');
     this.btnNextSession = document.getElementById('btn-next-session');
 
-    // Swipe Controller 初期化
+    // Swipe Controller
     this.swipe = new SwipeController(
       this.card,
-      () => this.handleAnswer(false), // 左スワイプ: ✕ 分からない
-      () => this.handleAnswer(true),  // 右スワイプ: ◯ 分かる
-      () => this.toggleMeaning()      // タップ: 意味表示
+      () => this.handleAnswer(false),
+      () => this.handleAnswer(true),
+      () => this.toggleMeaning()
     );
   }
 
   async start() {
     await db.init();
-    this.allWords = await db.getAllWords();
-
-    // 初回起動で単語がなければサンプルを読み込む
-    if (this.allWords.length === 0) {
+    
+    // データバージョンの確認（新しい単語リストへの自動マイグレーション）
+    const savedVer = await db.getState('data_version', 1);
+    if (savedVer < DATA_VERSION) {
+      await db.clearAllWords();
       await this.loadInitialSampleWords();
+      await db.setState('data_version', DATA_VERSION);
+    } else {
+      this.allWords = await db.getAllWords();
+      if (this.allWords.length === 0) {
+        await this.loadInitialSampleWords();
+        await db.setState('data_version', DATA_VERSION);
+      }
     }
 
     this.currentMode = engine.getRecommendedMode();
@@ -69,7 +79,7 @@ class VocabSwipeApp {
     this.deck = engine.generateDailyDeck(this.allWords, carryovers, existingDeck);
     await db.setState(`deck_${logicalDate}`, this.deck);
 
-    // キューの作成
+    // キュー作成
     const wordMap = new Map(this.allWords.map(w => [w.id, w]));
     this.queue = this.deck.wordIds.map(id => wordMap.get(id)).filter(Boolean);
 
@@ -101,16 +111,13 @@ class VocabSwipeApp {
     const item = this.queue[this.currentIndex];
     this.isRevealed = false;
 
-    // プログレスバー
     const progress = (this.currentIndex / this.queue.length) * 100;
     this.progressBar.style.width = `${progress}%`;
     this.cardNum.textContent = `${this.currentIndex + 1} / ${this.queue.length}`;
 
-    // 表面（英語）
     this.wordText.textContent = item.word;
     this.phoneticText.textContent = item.phonetic || '';
 
-    // 裏面（日本語）は隠す
     this.meaningContainer.style.display = 'none';
     this.meaningText.textContent = item.meaning;
     if (item.example) {
@@ -136,12 +143,10 @@ class VocabSwipeApp {
     if (this.currentIndex >= this.queue.length) return;
     const currentItem = this.queue[this.currentIndex];
 
-    // 結果の記録
     const logicalDate = engine.getLogicalDate();
     if (!this.deck.results) this.deck.results = {};
     this.deck.results[currentItem.id] = isPass;
 
-    // モード別の結果保存
     if (this.currentMode === AppMode.NIGHT_TEST) {
       if (!this.deck.nightResults) this.deck.nightResults = {};
       this.deck.nightResults[currentItem.id] = isPass;
@@ -161,7 +166,6 @@ class VocabSwipeApp {
     this.completeOverlay.style.display = 'flex';
 
     if (this.currentMode === AppMode.MORNING_TEST) {
-      // 翌朝テスト完了時: 不正解（未記憶）の単語を翌日持ち越しキューに確定
       const failedIds = [];
       const passedIds = [];
       for (const [widStr, ok] of Object.entries(this.deck.morningResults || {})) {
@@ -170,10 +174,8 @@ class VocabSwipeApp {
         else passedIds.push(wid);
       }
 
-      // 持ち越しキューを更新
       await db.setState('carryover_ids', failedIds);
 
-      // 合格したものは週次マスタープールへ
       for (const pid of passedIds) {
         const w = this.allWords.find(x => x.id === pid);
         if (w) {
@@ -184,7 +186,6 @@ class VocabSwipeApp {
 
       this.completeDesc.innerHTML = `朝のテスト完了！<br>合格: <strong>${passedIds.length}</strong> 単語<br>未記憶(翌日へスライド): <strong>${failedIds.length}</strong> 単語`;
     } else if (this.currentMode === AppMode.SUNDAY_REVIEW) {
-      // 日曜総復習完了時: 落ちた単語を月曜の持ち越しへ
       const failedIds = [];
       const passedIds = [];
       for (const [widStr, ok] of Object.entries(this.deck.results || {})) {
@@ -195,31 +196,27 @@ class VocabSwipeApp {
       await db.setState('carryover_ids', failedIds);
       this.completeDesc.innerHTML = `日曜総復習完了！<br>完全習得: <strong>${passedIds.length}</strong> 単語<br>忘却(月曜へスライド): <strong>${failedIds.length}</strong> 単語`;
     } else {
-      this.completeDesc.innerHTML = `100単語のチェックが完了しました！<br>テンポよく反復して脳に定着させましょう。`;
+      this.completeDesc.innerHTML = `全単語のチェックが完了しました！<br>テンポよく反復して脳に定着させましょう。`;
     }
   }
 
   bindEvents() {
-    // ボタン操作（スワイプと同じ動作）
     this.btnFail.addEventListener('click', () => this.swipe.triggerSwipe('left'));
     this.btnPass.addEventListener('click', () => this.swipe.triggerSwipe('right'));
     this.btnFlip.addEventListener('click', () => this.toggleMeaning());
 
-    // 音声再生
     this.btnAudio.addEventListener('click', (e) => {
       e.stopPropagation();
       const item = this.queue[this.currentIndex];
       if (item) speechService.speak(item.word);
     });
 
-    // キーボード操作（PC用）
     window.addEventListener('keydown', (e) => {
       if (e.code === 'ArrowLeft') this.swipe.triggerSwipe('left');
       else if (e.code === 'ArrowRight') this.swipe.triggerSwipe('right');
       else if (e.code === 'Space' || e.code === 'Enter') this.toggleMeaning();
     });
 
-    // モード切り替えボタン
     this.modeBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         this.currentMode = btn.dataset.mode;
@@ -229,7 +226,6 @@ class VocabSwipeApp {
       });
     });
 
-    // 完了後の再確認
     this.btnNextSession.addEventListener('click', () => {
       this.currentIndex = 0;
       this.showCurrentWord();
@@ -241,14 +237,17 @@ class VocabSwipeApp {
       const resp = await fetch('samples/sample_words.csv');
       const text = await resp.text();
       const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean).slice(1);
+      
       const parsed = lines.map((line, idx) => {
-        const cols = line.split(',');
+        // カンマ区切り（クォート考慮）
+        const cols = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
+        const clean = (s) => (s || '').replace(/^"|"$/g, '').trim();
         return {
           id: idx + 1,
-          word: cols[0]?.trim(),
-          meaning: cols[1]?.trim(),
-          phonetic: cols[2]?.trim() || '',
-          example: cols[3]?.trim() || '',
+          word: clean(cols[0]),
+          meaning: clean(cols[1]),
+          phonetic: clean(cols[2]),
+          example: clean(cols[3]),
           status: 'unseen'
         };
       }).filter(w => w.word && w.meaning);

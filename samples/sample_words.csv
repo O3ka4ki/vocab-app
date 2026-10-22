@@ -1,13 +1,51 @@
-Word,Meaning,Phonetic,Example,ExampleTranslation,Category
-crucial,極めて重要な; 決定的な,/ˈkruː.ʃəl/,Negotiations are at a crucial stage.,交渉は極めて重要な段階にある。,TOEIC
-resilient,立ち直りが早い; 回復力がある,/rɪˈzɪl.jənt/,The economy proved to be remarkably resilient.,その経済は著しく回復力があることが証明された。,TOEIC
-implement,実行する; 導入する,/ˈɪm.plə.ment/,The company plans to implement new security policies next month.,会社は来月、新しいセキュリティ方針を導入する予定だ。,ビジネス
-sophisticated,洗練された; 高度な,/səˈfɪs.tɪ.keɪ.tɪd/,They use sophisticated algorithms to analyze market trends.,彼らは市場の動向を分析するために高度なアルゴリズムを用いている。,テクノロジー
-perseverance,忍耐力; 不屈の努力,/ˌpɜː.səˈvɪə.rəns/,Success usually requires hard work and perseverance.,成功には通常、努力と忍耐力が求められる。,日常
-inevitable,避けられない; 必然の,/ɪnˈev.ɪ.tə.bəl/,Change is an inevitable part of career growth.,変化はキャリアの成長において避けられないものだ。,ビジネス
-versatile,多才な; 多用途の,/ˈvɜː.sə.taɪl/,This software is a versatile tool for data visualization.,このソフトウェアはデータ可視化のための多用途なツールだ。,テクノロジー
-lucrative,利益の上がる; 儲かる,/ˈluː.krə.tɪv/,The merger turned out to be a lucrative deal for both companies.,その合併は両社にとって非常に儲かる取引となった。,ビジネス
-meticulous,極めて細心な; 几帳面な,/məˈtɪk.jə.ləs/,She was meticulous in keeping her records up to date.,彼女は記録を最新の状態に保つことに極めて細心であった。,日常
-comprehend,理解する; 把握する,/ˌkɒm.prɪˈhend/,It took time to comprehend the magnitude of the discovery.,その発見の重大さを理解するには時間がかかった。,日常
-innovate,革新する; 新しいものを導入する,/ˈɪn.ə.veɪt/,Companies must innovate to remain competitive.,企業は競争力を維持するために革新し続けなければならない。,ビジネス
-feasible,実行可能な; 実現できる,/ˈfiː.zə.bəl/,We need to explore whether this proposal is economically feasible.,この提案が経済的に実現可能かどうか検討する必要がある。,ビジネス
+Word,Meaning,Phonetic,Example,Category
+"accept","受け入れる","","","TOEIC頻出"
+"according to","～によると","","","TOEIC頻出"
+"additional","追加の","","","TOEIC頻出"
+"advance","先行した","","","TOEIC頻出"
+"advertising","広告（業）","","","TOEIC頻出"
+"agency","代理店","","","TOEIC頻出"
+"allow","許す","","","TOEIC頻出"
+"announce","発表する","","","TOEIC頻出"
+"annual","年に一度の","","","TOEIC頻出"
+"anyway","とにかく","","","TOEIC頻出"
+"application","応募書類","","","TOEIC頻出"
+"appreciate","感謝する","","","TOEIC頻出"
+"approve","承認する","","","TOEIC頻出"
+"arrange","手配する","","","TOEIC頻出"
+"attend","出席する","","","TOEIC頻出"
+"available","入手できる","","","TOEIC頻出"
+"award","賞","","","TOEIC頻出"
+"based","拠点のある","","","TOEIC頻出"
+"bill","請求書","","","TOEIC頻出"
+"budget","予算","","","TOEIC頻出"
+"candidate","候補者","","","TOEIC頻出"
+"charge","請求する","","","TOEIC頻出"
+"client","顧客","","","TOEIC頻出"
+"clothing","衣類","","","TOEIC頻出"
+"committee","委員会","","","TOEIC頻出"
+"conduct","実行する","","","TOEIC頻出"
+"conference","会議","","","TOEIC頻出"
+"confirm","確認する","","","TOEIC頻出"
+"construction","建設","","","TOEIC頻出"
+"contract","契約（書）","","","TOEIC頻出"
+"corporate","企業の","","","TOEIC頻出"
+"create","創造する","","","TOEIC頻出"
+"currently","現在","","","TOEIC頻出"
+"deadline","締め切り","","","TOEIC頻出"
+"delivery","配達（物）","","","TOEIC頻出"
+"department","部門","","","TOEIC頻出"
+"detail","詳細","","","TOEIC頻出"
+"display","展示","","","TOEIC頻出"
+"employee","社員","","","TOEIC頻出"
+"enclose","同封する","","","TOEIC頻出"
+"equipment","機器","","","TOEIC頻出"
+"excellent","素晴らしい","","","TOEIC頻出"
+"executive","重役","","","TOEIC頻出"
+"exhibit","展示物","","","TOEIC頻出"
+"expect","予期する","","","TOEIC頻出"
+"facility","施設","","","TOEIC頻出"
+"fee","料金","","","TOEIC頻出"
+"financial","お金の","","","TOEIC頻出"
+"firm","会社","","","TOEIC頻出"
+"following","～に続いて","","","TOEIC頻出"
