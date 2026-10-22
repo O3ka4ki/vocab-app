@@ -127,7 +127,7 @@ class VocabSwipeApp {
       [AppMode.SUNDAY_REVIEW]: '👑 日曜総復習テスト',
       [AppMode.CONFIRMATION_TEST]: '🎯 実力確認テスト (100問)'
     };
-    this.modeBadge.textContent = labels[this.currentMode] || '学習中';
+    this.modeBadge.textContent = (labels[this.currentMode] || '学習中') + ' ▾';
   }
 
   async updateDashboardStats() {
@@ -293,6 +293,38 @@ class VocabSwipeApp {
 
   bindEvents() {
     // タブ切り替え
+    
+    // モード切り替えモーダル
+    this.modeModal = document.getElementById('mode-modal');
+    this.modalCloseBtn = document.getElementById('modal-close-btn');
+
+    if (this.modeBadge && this.modeModal) {
+      this.modeBadge.addEventListener('click', () => {
+        // 現在のモードにactiveクラスをつける
+        document.querySelectorAll('.mode-option-item').forEach(item => {
+          item.classList.toggle('active', item.dataset.mode === this.currentMode);
+        });
+        this.modeModal.classList.add('open');
+      });
+
+      this.modalCloseBtn.addEventListener('click', () => {
+        this.modeModal.classList.remove('open');
+      });
+
+      this.modeModal.addEventListener('click', (e) => {
+        if (e.target === this.modeModal) this.modeModal.classList.remove('open');
+      });
+
+      document.querySelectorAll('.mode-option-item').forEach(item => {
+        item.addEventListener('click', async () => {
+          this.currentMode = item.dataset.mode;
+          this.modeModal.classList.remove('open');
+          await this.setupDeck();
+          this.switchView('study');
+        });
+      });
+    }
+
     this.tabBtnStudy.addEventListener('click', () => this.switchView('study'));
     this.tabBtnProgress.addEventListener('click', () => this.switchView('progress'));
 

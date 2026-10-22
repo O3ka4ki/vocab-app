@@ -23,7 +23,7 @@
 
     <!-- Mode Badge -->
     <div style="display: flex; align-items: center; gap: 6px;">
-      <span class="mode-badge" id="mode-badge">日中スキマ学習</span>
+      <span class="mode-badge" id="mode-badge" title="タップしてモード切り替え">日中スキマ学習 ▾</span>
     </div>
   </header>
 
@@ -150,6 +150,46 @@
     </div>
   </div>
 
+
+  <!-- Mode Selection Modal -->
+  <div class="modal-overlay" id="mode-modal">
+    <div class="bottom-sheet">
+      <div class="sheet-header">
+        <h3 class="sheet-title">モードの切り替え</h3>
+        <button class="sheet-close-btn" id="modal-close-btn">✕</button>
+      </div>
+      <div class="mode-option-list">
+        <div class="mode-option-item" data-mode="day_study">
+          <div class="option-left">
+            <span class="option-title">☀️ 日中スキマ学習</span>
+            <span class="option-desc">スキマ時間に何度でもパラパラめくって確認</span>
+          </div>
+          <span class="option-badge">いつでも</span>
+        </div>
+        <div class="mode-option-item" data-mode="night_test">
+          <div class="option-left">
+            <span class="option-title">🌙 夜のテスト (10秒)</span>
+            <span class="option-desc">寝る前に本日の100問を一気にテスト</span>
+          </div>
+          <span class="option-badge">21:00〜</span>
+        </div>
+        <div class="mode-option-item" data-mode="morning_test">
+          <div class="option-left">
+            <span class="option-title">🌅 翌朝の復習テスト</span>
+            <span class="option-desc">昨日の単語をテスト（✕は今日へスライド持ち越し）</span>
+          </div>
+          <span class="option-badge">03:00〜</span>
+        </div>
+        <div class="mode-option-item" data-mode="sunday_review">
+          <div class="option-left">
+            <span class="option-title">👑 日曜総復習テスト</span>
+            <span class="option-desc">今週覚えた単語を一気に総復習（完全習得へ）</span>
+          </div>
+          <span class="option-badge">日曜日</span>
+        </div>
+      </div>
+    </div>
+  </div>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
