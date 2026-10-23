@@ -5,7 +5,7 @@ class SpeechService {
     this.enVoice = null;
     this.jaVoice = null;
     this.rate = 0.9;
-    this.jaRate = 1.05;
+    this.jaRate = 0.95; // 落ち着いて聞き取りやすい自然なスピード
 
     // 英語・日本語の個別設定（初期値はON）
     const legacyMuted = localStorage.getItem('vocab_muted');
@@ -43,13 +43,13 @@ class SpeechService {
                   || enVoices[0]
                   || null;
 
-      // 日本語: 最も明瞭で音量の大きいボイスを優先
+      // 日本語: 最も自然で落ち着いて聞き取りやすいボイスを優先（甲高い音は除外）
       const jaVoices = voices.filter(v => v.lang.startsWith('ja') || v.lang === 'ja_JP');
-      this.jaVoice = jaVoices.find(v => v.name.includes('Nanami') || v.name.includes('Natural'))
+      this.jaVoice = jaVoices.find(v => v.name.includes('Natural') || v.name.includes('Nanami'))
                   || jaVoices.find(v => v.name.includes('Google'))
                   || jaVoices.find(v => v.name.includes('Kyoko') || v.name.includes('Otoya'))
+                  || jaVoices.find(v => v.name.includes('Haruka'))
                   || jaVoices.find(v => v.name.includes('Siri'))
-                  || jaVoices.find(v => v.name.includes('Haruka') || v.name.includes('Ayumi') || v.name.includes('Ichiro'))
                   || jaVoices[0]
                   || null;
 
@@ -130,14 +130,14 @@ class SpeechService {
     if (lang.startsWith('ja')) {
       utter.lang = 'ja-JP';
       if (this.jaVoice) utter.voice = this.jaVoice;
-      utter.rate = this.jaRate; // 1.05
+      utter.rate = this.jaRate; // 0.95（落ち着いた自然な速度）
       utter.volume = 1.0;       // 日本語は最大音量
-      utter.pitch = 1.06;      // トーンを少し明るくして音量感と明瞭度をアップ
+      utter.pitch = 1.0;        // ピッチを標準(1.0)にして高音の尖り・金属的な響きを完全に解消
     } else {
       utter.lang = 'en-US';
       if (this.enVoice) utter.voice = this.enVoice;
       utter.rate = this.rate;   // 0.9
-      utter.volume = 0.75;      // 英語の音圧が高いため0.75に調整し、日本語と音量を統一
+      utter.volume = 0.85;      // 英語の音量
       utter.pitch = 1.0;
     }
 
