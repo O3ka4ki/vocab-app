@@ -36,12 +36,23 @@ class SpeechService {
     const loadVoices = () => {
       const voices = this.synth.getVoices();
       if (!voices || voices.length === 0) return;
-      this.enVoice = voices.find(v => (v.lang.startsWith('en-US') || v.lang.startsWith('en-GB')) && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Siri')))
-                  || voices.find(v => v.lang.startsWith('en'))
+
+      // 英語: 自然でクリアなボイスを優先
+      const enVoices = voices.filter(v => v.lang.startsWith('en-US') || v.lang.startsWith('en-GB') || v.lang.startsWith('en'));
+      this.enVoice = enVoices.find(v => v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Siri'))
+                  || enVoices[0]
                   || null;
-      this.jaVoice = voices.find(v => (v.lang.startsWith('ja') || v.lang === 'ja_JP') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Kyoko') || v.name.includes('Otoya') || v.name.includes('Siri') || v.name.includes('Nanami') || v.name.includes('Haruka') || v.name.includes('Ayumi')))
-                  || voices.find(v => v.lang.startsWith('ja'))
+
+      // 日本語: 最も明瞭で音量の大きいボイスを優先
+      const jaVoices = voices.filter(v => v.lang.startsWith('ja') || v.lang === 'ja_JP');
+      this.jaVoice = jaVoices.find(v => v.name.includes('Nanami') || v.name.includes('Natural'))
+                  || jaVoices.find(v => v.name.includes('Google'))
+                  || jaVoices.find(v => v.name.includes('Kyoko') || v.name.includes('Otoya'))
+                  || jaVoices.find(v => v.name.includes('Siri'))
+                  || jaVoices.find(v => v.name.includes('Haruka') || v.name.includes('Ayumi') || v.name.includes('Ichiro'))
+                  || jaVoices[0]
                   || null;
+
       this.voice = this.enVoice;
     };
 
@@ -119,11 +130,15 @@ class SpeechService {
     if (lang.startsWith('ja')) {
       utter.lang = 'ja-JP';
       if (this.jaVoice) utter.voice = this.jaVoice;
-      utter.rate = this.jaRate;
+      utter.rate = this.jaRate; // 1.05
+      utter.volume = 1.0;       // 日本語は最大音量
+      utter.pitch = 1.06;      // トーンを少し明るくして音量感と明瞭度をアップ
     } else {
       utter.lang = 'en-US';
       if (this.enVoice) utter.voice = this.enVoice;
-      utter.rate = this.rate;
+      utter.rate = this.rate;   // 0.9
+      utter.volume = 0.75;      // 英語の音圧が高いため0.75に調整し、日本語と音量を統一
+      utter.pitch = 1.0;
     }
 
     this.currentUtterance = utter;
