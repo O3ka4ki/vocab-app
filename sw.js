@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vocab-master-v33';
+const CACHE_NAME = 'vocab-master-v34';
 const ASSETS = [
   './',
   './index.html',
@@ -9,7 +9,8 @@ const ASSETS = [
   './js/importer.js',
   './js/speech.js',
   './manifest.json',
-  './samples/sample_words.csv'
+  './samples/sample_words.csv',
+  './samples/kin_no_phrase.csv'
 ];
 
 self.addEventListener('install', (e) => {

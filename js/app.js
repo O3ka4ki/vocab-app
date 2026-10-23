@@ -4,7 +4,7 @@ import { SwipeController } from './swipe.js';
 import { speechService } from './speech.js';
 import { parseCSV, cleanMeaningTag } from './importer.js';
 
-const DATA_VERSION = 19;
+const DATA_VERSION = 20;
 
 class VocabSwipeApp {
   constructor() {
