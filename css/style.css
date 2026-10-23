@@ -79,28 +79,72 @@ body {
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
 }
 
-.sound-toggle-btn {
-  background: rgba(255, 255, 255, 0.06);
+.sound-control-group {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 2px;
+  border-radius: 999px;
   border: 1px solid var(--border-subtle);
+  gap: 2px;
+}
+
+.sound-chip-btn {
+  background: transparent;
+  border: 1px solid transparent;
   color: #cbd5e1;
   font-size: 0.72rem;
-  font-weight: 600;
-  padding: 3px 8px;
+  font-weight: 700;
+  padding: 3px 7px;
   border-radius: 999px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  transition: all 0.2s ease;
+  gap: 3px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
 }
-.sound-toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+.sound-chip-btn:active {
+  transform: scale(0.92);
 }
-.sound-toggle-btn.muted {
-  background: rgba(239, 68, 68, 0.18);
-  border-color: rgba(239, 68, 68, 0.4);
-  color: #fca5a5;
+
+/* 英語ONスタイル */
+#btn-sound-en:not(.off) {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: rgba(56, 189, 248, 0.45);
+  color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.15);
+}
+
+/* 日本語ONスタイル */
+#btn-sound-ja:not(.off) {
+  background: rgba(250, 204, 21, 0.16);
+  border-color: rgba(250, 204, 21, 0.45);
+  color: #facc15;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.15);
+}
+
+/* OFF（消音）スタイル */
+.sound-chip-btn.off {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: transparent;
+  color: #64748b;
+  opacity: 0.65;
+}
+.sound-chip-btn.off:hover {
+  opacity: 0.9;
+  color: #94a3b8;
+}
+
+.sound-chip-icon {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.sound-chip-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .mode-badge {
@@ -344,6 +388,37 @@ body {
 }
 .btn-flip-quick:active svg {
   transform: rotate(180deg);
+}
+
+.btn-undo {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1.5px solid rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+  width: 50px;
+  height: 50px;
+  transition: all 0.2s ease;
+}
+.btn-undo svg {
+  display: block;
+  margin-bottom: 2px;
+  transition: transform 0.2s ease;
+}
+.btn-undo:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: #fbbf24;
+}
+.btn-undo:active:not(:disabled) {
+  transform: scale(0.92);
+}
+.btn-undo:active:not(:disabled) svg {
+  transform: rotate(-30deg);
+}
+.btn-undo:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: grayscale(0.7);
+  box-shadow: none;
 }
 
 .btn-label {
