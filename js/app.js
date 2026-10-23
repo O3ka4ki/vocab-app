@@ -2,9 +2,9 @@ import { db } from './db.js';
 import { engine, AppMode } from './engine.js';
 import { SwipeController } from './swipe.js';
 import { speechService } from './speech.js';
-import { parseCSV } from './importer.js';
+import { parseCSV, cleanMeaningTag } from './importer.js';
 
-const DATA_VERSION = 16;
+const DATA_VERSION = 17;
 
 class VocabSwipeApp {
   constructor() {
@@ -122,8 +122,10 @@ class VocabSwipeApp {
     
     const savedVer = await db.getState('data_version', 1);
     if (savedVer < DATA_VERSION) {
+      const existingWords = await db.getAllWords();
+      const statusMap = new Map(existingWords.map(w => [w.word, w.status]));
       await db.clearAllWords();
-      await this.loadInitialSampleWords();
+      await this.loadInitialSampleWords(statusMap);
       await db.setState('data_version', DATA_VERSION);
     } else {
       this.allWords = await db.getAllWords();
@@ -301,7 +303,7 @@ class VocabSwipeApp {
     this.phoneticText.style.display = phoneticVal ? 'block' : 'none';
 
     this.meaningContainer.style.display = 'none';
-    this.meaningText.textContent = item.meaning;
+    this.meaningText.textContent = cleanMeaningTag(item.meaning);
     if (item.example) {
       this.exampleBox.style.display = 'block';
       this.exampleBox.textContent = `Ex: ${item.example}`;
@@ -584,7 +586,7 @@ class VocabSwipeApp {
       item.innerHTML = `
         <div class="wrong-word-info">
           <span class="wrong-word-text">${w.word}</span>
-          <span class="wrong-word-meaning">${w.meaning}</span>
+          <span class="wrong-word-meaning">${cleanMeaningTag(w.meaning)}</span>
         </div>
         <button class="btn-mini-audio" title="発音を聞く">🔊</button>
       `;
@@ -813,7 +815,7 @@ class VocabSwipeApp {
     }
   }
 
-  async loadInitialSampleWords() {
+  async loadInitialSampleWords(statusMap = null) {
     try {
       const resp = await fetch('samples/sample_words.csv');
       const text = await resp.text();
@@ -822,11 +824,11 @@ class VocabSwipeApp {
       const wordsWithStatus = parsedWords.map((w, idx) => ({
         id: idx + 1,
         word: w.word,
-        meaning: w.meaning,
+        meaning: cleanMeaningTag(w.meaning),
         phonetic: (w.phonetic && !w.phonetic.includes('TOEIC') && !w.phonetic.includes('単語') && !w.phonetic.includes('熟語')) ? w.phonetic : '',
         example: w.example || '',
         category: w.category || 'General',
-        status: 'unseen'
+        status: (statusMap && statusMap.has(w.word)) ? statusMap.get(w.word) : 'unseen'
       })).filter(w => w.word && w.meaning);
 
       await db.saveWordsBulk(wordsWithStatus);

@@ -106,7 +106,10 @@ class SpeechService {
 
   speakJapanese(text, force = false) {
     if (!force && !this.soundJa) return;
-    const cleanText = text ? text.replace(/[／/]/g, '、').replace(/[;；]/g, '、') : '';
+    let cleanText = text || '';
+    // 品詞タグ（[名]、[動]等）を確実に除去
+    cleanText = cleanText.replace(/[\[［【\(（](?:名|動|形|副|前|接|他|自|間|代|他動詞|自動詞|名詞|動詞|形容詞|副詞|前置詞|接続詞)[\]］】\)）]\s*/g, '');
+    cleanText = cleanText.replace(/[／/]/g, '、').replace(/[;；]/g, '、');
     this.speak(cleanText, 'ja-JP');
   }
 

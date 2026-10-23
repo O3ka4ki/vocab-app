@@ -1,5 +1,12 @@
 import { createDefaultSRSData } from './srs.js';
 
+export function cleanMeaningTag(meaning) {
+  if (!meaning) return '';
+  return meaning
+    .replace(/[\[［【\(（](?:名|動|形|副|前|接|他|自|間|代|他動詞|自動詞|名詞|動詞|形容詞|副詞|前置詞|接続詞)[\]］】\)）]\s*/g, '')
+    .trim();
+}
+
 export function parseCSV(text) {
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
   if (lines.length === 0) return [];
@@ -58,7 +65,7 @@ export function parseCSV(text) {
   for (let i = startIndex; i < rows.length; i++) {
     const r = rows[i];
     const wordStr = (r[colMap.word] || '').trim();
-    const meaningStr = (r[colMap.meaning] || '').trim();
+    const meaningStr = cleanMeaningTag(r[colMap.meaning] || '');
 
     if (!wordStr || !meaningStr) continue;
 
