@@ -4,7 +4,7 @@ import { SwipeController } from './swipe.js';
 import { speechService } from './speech.js';
 import { parseCSV, cleanMeaningTag } from './importer.js';
 
-const DATA_VERSION = 17;
+const DATA_VERSION = 18;
 
 class VocabSwipeApp {
   constructor() {
@@ -122,10 +122,15 @@ class VocabSwipeApp {
     
     const savedVer = await db.getState('data_version', 1);
     if (savedVer < DATA_VERSION) {
-      const existingWords = await db.getAllWords();
-      const statusMap = new Map(existingWords.map(w => [w.word, w.status]));
       await db.clearAllWords();
-      await this.loadInitialSampleWords(statusMap);
+      const logicalDate = engine.getLogicalDate();
+      await db.setState(`deck_${logicalDate}`, null);
+      await db.setState('carryover_ids', []);
+      await db.setState('day_study_started_at', null);
+      await db.setState('day_study_round_failed_ids', null);
+      await db.setState('day_study_current_index', 0);
+      await db.setState('day_study_round_results', {});
+      await this.loadInitialSampleWords(); // 新しい単語リストのみを登録
       await db.setState('data_version', DATA_VERSION);
     } else {
       this.allWords = await db.getAllWords();
@@ -283,6 +288,15 @@ class VocabSwipeApp {
 
   showCurrentWord(autoSpeak = false) {
     this.updateUndoButtonState();
+    if (this.queue.length === 0) {
+      this.cardNum.textContent = '0 / 0';
+      this.wordText.textContent = '単語が登録されていません';
+      this.phoneticText.textContent = '';
+      this.meaningText.textContent = '参考書のスクショから単語を追加してください';
+      this.meaningContainer.classList.add('visible');
+      this.progressBar.style.width = '0%';
+      return;
+    }
     if (this.currentIndex >= this.queue.length) {
       this.handleSessionComplete();
       return;
