@@ -6,6 +6,8 @@ class SpeechService {
     this.jaVoice = null;
     this.rate = 0.9;
     this.jaRate = 1.0;
+    this.enVolume = 0.6; // 英語の音圧を適度に抑え、日本語がしっかり大きく聞こえるよう調整
+    this.jaVolume = 1.0; // 日本語は最大音量(1.0)で再生
 
     // 英語・日本語の個別設定（初期値はON）
     const legacyMuted = localStorage.getItem('vocab_muted');
@@ -128,10 +130,12 @@ class SpeechService {
       utter.lang = 'ja-JP';
       if (this.jaVoice) utter.voice = this.jaVoice;
       utter.rate = this.jaRate;
+      utter.volume = this.jaVolume;
     } else {
       utter.lang = 'en-US';
       if (this.enVoice) utter.voice = this.enVoice;
       utter.rate = this.rate;
+      utter.volume = this.enVolume;
     }
 
     this.currentUtterance = utter;
