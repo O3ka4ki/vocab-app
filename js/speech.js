@@ -6,7 +6,7 @@ class SpeechService {
     this.jaVoice = null;
     this.rate = 0.9;
     this.jaRate = 1.0;
-    this.enVolume = 0.6; // 英語の音圧を適度に抑え、日本語がしっかり大きく聞こえるよう調整
+    this.enVolume = 1.0; // 日本語と同じ最大音量(1.0)で再生
     this.jaVolume = 1.0; // 日本語は最大音量(1.0)で再生
 
     // 英語・日本語の個別設定（初期値はON）

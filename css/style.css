@@ -900,3 +900,200 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.05);
   transform: none !important;
 }
+
+/* ==========================================================================
+   Cloud Sync UI Styles
+   ========================================================================== */
+.sync-badge-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #38bdf8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.sync-badge-btn:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: rgba(56, 189, 248, 0.5);
+}
+.sync-badge-btn.syncing {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+}
+.sync-badge-btn.syncing #sync-icon {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+.sync-badge-btn.offline {
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #94a3b8;
+}
+.sync-badge-btn.error {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.sync-sheet {
+  max-width: 440px;
+}
+.sync-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 10px 0;
+}
+.sync-status-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sync-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+.sync-status-label {
+  color: var(--text-sub);
+}
+.sync-status-val {
+  font-weight: 700;
+  color: #fff;
+}
+.sync-status-detail {
+  font-size: 0.75rem;
+  color: #38bdf8;
+  margin-top: 4px;
+}
+.sync-actions-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sync-note {
+  font-size: 0.75rem;
+  color: var(--text-sub);
+  line-height: 1.45;
+  background: rgba(56, 189, 248, 0.06);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 0;
+}
+
+/* ==========================================================================
+   Streak Badge & Stacked Progress Bar Styles
+   ========================================================================== */
+.streak-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.15);
+  color: #fb923c;
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  user-select: none;
+}
+
+.hero-bar-track.stacked-bar {
+  display: flex;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  height: 12px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.hero-bar-segment {
+  height: 100%;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.seg-mastered {
+  background: linear-gradient(90deg, #10b981, #059669);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+}
+
+.seg-learned {
+  background: linear-gradient(90deg, #38bdf8, #0284c7);
+}
+
+.seg-learning {
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+}
+
+.hero-legend-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px 12px;
+  margin: 10px 0 6px;
+  font-size: 0.76rem;
+  color: var(--text-sub);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-mastered { background: #10b981; }
+.dot-learned { background: #38bdf8; }
+.dot-learning { background: #f59e0b; }
+.dot-unseen { background: #64748b; }
+
+.status-grid.grid-4col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+@media (min-width: 480px) {
+  .status-grid.grid-4col {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.status-card.card-mastered {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+.status-card.card-mastered .status-card-num {
+  color: #34d399;
+}
+
+.status-card.card-learned {
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}
+.status-card.card-learned .status-card-num {
+  color: #38bdf8;
+}

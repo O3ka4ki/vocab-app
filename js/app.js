@@ -3,8 +3,9 @@ import { engine, AppMode } from './engine.js';
 import { SwipeController } from './swipe.js';
 import { speechService } from './speech.js';
 import { parseCSV, cleanMeaningTag } from './importer.js';
+import { syncManager, SyncStatus } from './sync.js';
 
-const DATA_VERSION = 20;
+const DATA_VERSION = 21;
 
 class VocabSwipeApp {
   constructor() {
@@ -19,6 +20,7 @@ class VocabSwipeApp {
     this.timerInterval = null;
     this.history = [];
 
+    window.app = this;
     this.initElements();
     this.bindEvents();
   }
@@ -41,6 +43,23 @@ class VocabSwipeApp {
     this.statCountUnseen = document.getElementById('stat-count-unseen');
     this.dashCarryoverCount = document.getElementById('dash-carryover-count');
     this.btnStartConfirmTest = document.getElementById('btn-start-confirm-test');
+
+    // Header Streak Badge
+    this.headerStreakText = document.getElementById('header-streak-text');
+
+    // Stacked Progress Segments & Legends
+    this.dashSegMastered = document.getElementById('dash-seg-mastered');
+    this.dashSegLearned = document.getElementById('dash-seg-learned');
+    this.dashSegLearning = document.getElementById('dash-seg-learning');
+    this.dashLegendMastered = document.getElementById('dash-legend-mastered');
+    this.dashLegendLearned = document.getElementById('dash-legend-learned');
+    this.dashLegendLearning = document.getElementById('dash-legend-learning');
+    this.dashLegendUnseen = document.getElementById('dash-legend-unseen');
+    this.statCountLearned = document.getElementById('stat-count-learned');
+    this.btnStartScreening = document.getElementById('btn-start-screening');
+    this.stampPass = document.querySelector('.stamp-pass');
+    this.stampFail = document.querySelector('.stamp-fail');
+    this.cardHint = document.querySelector('.card-bottom-hint');
 
     // Header Timer Badge & Individual Sound Toggles (EN / JA)
     this.btnSoundEn = document.getElementById('btn-sound-en');
@@ -81,6 +100,18 @@ class VocabSwipeApp {
     this.btnNextSession = document.getElementById('btn-next-session');
     this.btnResetFull = document.getElementById('btn-reset-full');
 
+    // Cloud Sync Elements
+    this.btnSync = document.getElementById('btn-sync');
+    this.syncIcon = document.getElementById('sync-icon');
+    this.syncText = document.getElementById('sync-text');
+    this.syncModal = document.getElementById('sync-modal');
+    this.syncModalCloseBtn = document.getElementById('sync-modal-close-btn');
+    this.btnDoSync = document.getElementById('btn-do-sync');
+    this.btnForceUpload = document.getElementById('btn-force-upload');
+    this.syncConnectionText = document.getElementById('sync-connection-text');
+    this.syncLastTime = document.getElementById('sync-last-time');
+    this.syncDetailText = document.getElementById('sync-detail-text');
+
     // Swipe Controller
     this.swipe = new SwipeController(
       this.card,
@@ -117,6 +148,111 @@ class VocabSwipeApp {
     }
   }
 
+  async updateStreakUI() {
+    const streak = (await db.getState('streak_count', 0)) || 0;
+    if (this.headerStreakText) {
+      this.headerStreakText.textContent = `${streak}日連続`;
+    }
+  }
+
+  async recordStreakSuccess() {
+    const today = engine.getLogicalDate();
+    const lastDate = await db.getState('last_streak_date', null);
+    let streak = (await db.getState('streak_count', 0)) || 0;
+
+    if (lastDate !== today) {
+      const yesterday = engine.getYesterdayLogicalDate();
+      if (lastDate === yesterday) {
+        streak += 1;
+      } else {
+        streak = 1;
+      }
+      await db.setState('streak_count', streak);
+      await db.setState('last_streak_date', today);
+      await this.updateStreakUI();
+    }
+    return streak;
+  }
+
+  updateSyncUI(status, isOnline, detail = '') {
+    if (!this.btnSync) return;
+
+    this.btnSync.classList.remove('syncing', 'offline', 'error');
+
+    if (!isOnline) {
+      this.btnSync.classList.add('offline');
+      if (this.syncIcon) this.syncIcon.textContent = '📶';
+      if (this.syncText) this.syncText.textContent = 'オフライン';
+    } else if (status === SyncStatus.SYNCING) {
+      this.btnSync.classList.add('syncing');
+      if (this.syncIcon) this.syncIcon.textContent = '🔄';
+      if (this.syncText) this.syncText.textContent = '同期中';
+    } else if (status === SyncStatus.ERROR) {
+      this.btnSync.classList.add('error');
+      if (this.syncIcon) this.syncIcon.textContent = '⚠️';
+      if (this.syncText) this.syncText.textContent = 'エラー';
+    } else {
+      if (this.syncIcon) this.syncIcon.textContent = '☁️';
+      if (this.syncText) this.syncText.textContent = '同期済';
+    }
+
+    if (this.syncConnectionText) {
+      this.syncConnectionText.textContent = isOnline ? 'オンライン (接続良好)' : 'オフライン (端末内学習可)';
+      this.syncConnectionText.style.color = isOnline ? '#34d399' : '#94a3b8';
+    }
+
+    if (this.syncDetailText && detail) {
+      this.syncDetailText.textContent = detail;
+    }
+  }
+
+  async refreshSyncModalInfo() {
+    const lastSyncAt = await db.getState('last_cloud_sync_at', null);
+    if (this.syncLastTime) {
+      if (lastSyncAt) {
+        const d = new Date(lastSyncAt);
+        const timeStr = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        this.syncLastTime.textContent = timeStr;
+      } else {
+        this.syncLastTime.textContent = '未同期';
+      }
+    }
+  }
+
+  async handleManualSync() {
+    if (this.btnDoSync) this.btnDoSync.disabled = true;
+    try {
+      const res = await syncManager.sync();
+      if (res && res.pullCount > 0) {
+        this.allWords = await db.getAllWords();
+        await this.setupDeck();
+        this.updateDashboardStats();
+        this.showCurrentWord();
+      }
+    } finally {
+      if (this.btnDoSync) this.btnDoSync.disabled = false;
+      await this.refreshSyncModalInfo();
+    }
+  }
+
+  async handleForceUpload() {
+    const count = this.allWords.length;
+    if (!confirm(`端末内の全単語（${count}語）をクラウドへアップロードしますか？\n※PCで増やした単語がスマホに自動同期されるようになります。`)) {
+      return;
+    }
+
+    if (this.btnForceUpload) this.btnForceUpload.disabled = true;
+    try {
+      const res = await syncManager.forceUploadAllWords();
+      alert(`アップロード完了！\n${res.pushCount} 件の単語をクラウドに同期しました。スマホ側を開くと自動で同期されます。`);
+    } catch (err) {
+      alert('アップロードに失敗しました: ' + (err.message || err));
+    } finally {
+      if (this.btnForceUpload) this.btnForceUpload.disabled = false;
+      await this.refreshSyncModalInfo();
+    }
+  }
+
   async start() {
     await db.init();
     
@@ -145,7 +281,29 @@ class VocabSwipeApp {
     await this.setupDeck();
     this.updateDashboardStats();
     this.updateSoundUI();
+    await this.updateStreakUI();
     this.startTimerLoop();
+
+    // クラウド同期の初期化 & リスナー登録
+    syncManager.onStatusChange((status, isOnline, detail) => {
+      this.updateSyncUI(status, isOnline, detail);
+    });
+    syncManager.init();
+
+    // バックグラウンド自動同期 (新単語の取得＆ローカル変更の送信)
+    (async () => {
+      try {
+        const res = await syncManager.sync();
+        if (res && res.pullCount > 0) {
+          this.allWords = await db.getAllWords();
+          await this.setupDeck();
+          this.updateDashboardStats();
+          this.showCurrentWord();
+        }
+      } catch (e) {
+        console.log('[App] Initial cloud sync skipped:', e);
+      }
+    })();
   }
 
   async setupDeck() {
@@ -177,9 +335,27 @@ class VocabSwipeApp {
           const w = wordMap.get(id);
           return w && w.status !== 'weekly_pending' && w.status !== 'mastered';
         });
-        this.queue = validFailedIds.map(id => wordMap.get(id)).filter(Boolean);
+        if (validFailedIds.length > 0) {
+          this.queue = validFailedIds.map(id => wordMap.get(id)).filter(Boolean);
+        } else {
+          await db.setState('day_study_round_failed_ids', null);
+          const validIds = (this.deck.wordIds || []).slice(0, 100);
+          this.queue = validIds.map(id => wordMap.get(id)).filter(Boolean);
+        }
       } else {
-        this.queue = this.deck.wordIds.map(id => wordMap.get(id)).filter(Boolean);
+        // 日中スキマ学習は必ず100語に制限
+        const validIds = (this.deck.wordIds || []).slice(0, 100);
+        this.queue = validIds.map(id => wordMap.get(id)).filter(Boolean);
+      }
+
+      // キューが空かつ単語が存在する場合の自動補充・自己回復
+      if (this.queue.length === 0 && this.allWords.length > 0) {
+        const unseen = this.allWords.filter(w => !w.status || w.status === 'unseen' || w.status === 'new');
+        if (unseen.length > 0) {
+          this.queue = unseen.slice(0, 100);
+        } else {
+          this.queue = this.allWords.slice(0, 100);
+        }
       }
 
       // 途中の進行状況（インデックス＆解答）の復元
@@ -189,18 +365,12 @@ class VocabSwipeApp {
         this.currentIndex = 0;
       }
     } else if (this.currentMode === AppMode.MORNING_TEST) {
-      // 🌅 翌朝の復習テスト: 昨日の単語をテスト対象とする（なければ当日のデッキ）
+      // 🌅 翌朝の復習テスト: 昨日の単語(約100問) + 過去の学習済みから抜き打ち20問
       const yesterdayDate = engine.getYesterdayLogicalDate();
       const yesterdayDeck = await db.getState(`deck_${yesterdayDate}`, null);
 
-      let testWordIds = [];
-      if (yesterdayDeck && yesterdayDeck.wordIds && yesterdayDeck.wordIds.length > 0) {
-        testWordIds = yesterdayDeck.wordIds;
-      } else {
-        testWordIds = this.deck.wordIds;
-      }
-
-      this.queue = testWordIds.map(id => wordMap.get(id)).filter(Boolean);
+      this.deck = engine.generateMorningDeck(this.allWords, yesterdayDeck, this.deck, 20);
+      this.queue = this.deck.wordIds.map(id => wordMap.get(id)).filter(Boolean);
       this.currentIndex = 0;
     } else {
       this.queue = this.deck.wordIds.map(id => wordMap.get(id)).filter(Boolean);
@@ -212,7 +382,7 @@ class VocabSwipeApp {
   }
 
   async startConfirmationTest() {
-    const pool = this.allWords.filter(w => w.status === 'mastered' || w.status === 'weekly_pending');
+    const pool = this.allWords.filter(w => w.status === 'mastered');
     if (pool.length === 0) {
       alert('まだ合格した単語がありません。まずは日々の「翌朝の復習テスト」で単語を合格させましょう！');
       return;
@@ -231,6 +401,30 @@ class VocabSwipeApp {
     this.showCurrentWord();
   }
 
+  async startScreeningMode() {
+    const pool = this.allWords.filter(w => !w.status || w.status === 'unseen' || w.status === 'new');
+    if (pool.length === 0) {
+      alert('すべての単語のスクリーニングが完了しています！\n（未着手の単語はありません）');
+      return;
+    }
+
+    this.currentMode = AppMode.SCREENING;
+    this.deck = {
+      date: engine.getLogicalDate(),
+      mode: AppMode.SCREENING,
+      wordIds: pool.map(w => w.id),
+      results: {}
+    };
+    this.history = [];
+    this.queue = pool;
+    this.currentIndex = 0;
+    this.currentRoundResults = {};
+
+    this.switchView('study');
+    this.updateModeUI();
+    this.showCurrentWord(true);
+  }
+
   updateUndoButtonState() {
     if (this.btnUndo) {
       this.btnUndo.disabled = this.currentIndex <= 0;
@@ -239,13 +433,23 @@ class VocabSwipeApp {
 
   updateModeUI() {
     const labels = {
-      [AppMode.DAY_STUDY]: '☀️ 日中スキマ学習',
-      [AppMode.NIGHT_TEST]: '🌙 夜のテスト (10秒)',
-      [AppMode.MORNING_TEST]: '🌅 翌朝の復習テスト',
-      [AppMode.SUNDAY_REVIEW]: '👑 日曜総復習テスト',
-      [AppMode.CONFIRMATION_TEST]: '🎯 実力確認テスト (100問)'
+      [AppMode.DAY_STUDY]: '☀️ 日中スキマ学習 (100語)',
+      [AppMode.MORNING_TEST]: '🌅 翌朝の復習テスト (120語)',
+      [AppMode.CONFIRMATION_TEST]: '🎯 実力確認テスト (100問)',
+      [AppMode.SCREENING]: '🔍 全体初回スクリーニング'
     };
     this.modeBadge.textContent = (labels[this.currentMode] || '学習中') + ' ▾';
+
+    if (this.currentMode === AppMode.SCREENING) {
+      if (this.stampPass) this.stampPass.textContent = '◯ 知ってる (習得済みへ)';
+      if (this.stampFail) this.stampFail.textContent = '✕ 知らない (学習デッキへ)';
+      if (this.cardHint) this.cardHint.textContent = 'タップで意味表示 ｜ 👈 ✕ 知らない ｜ 👉 ◯ 知ってる';
+    } else {
+      if (this.stampPass) this.stampPass.textContent = '◯ 分かる';
+      if (this.stampFail) this.stampFail.textContent = '✕ 分からない';
+      if (this.cardHint) this.cardHint.textContent = 'タップで意味表示 ｜ 👈 ✕ 分からない ｜ 👉 ◯ 分かる';
+    }
+
     this.updateTimerDisplay();
   }
 
@@ -254,47 +458,86 @@ class VocabSwipeApp {
     const carryovers = await db.getState('carryover_ids', []);
 
     let mastered = 0;
+    let learned = 0;
     let learning = 0;
     let unseen = 0;
 
     for (const w of this.allWords) {
-      if (w.status === 'mastered' || w.status === 'weekly_pending') mastered++;
+      if (w.status === 'mastered') mastered++;
+      else if (w.status === 'learned' || w.status === 'weekly_pending') learned++;
       else if (w.status === 'learning' || carryovers.includes(w.id)) learning++;
       else unseen++;
     }
 
     const total = this.allWords.length;
-    const percentage = total > 0 ? Math.round((mastered / total) * 100) : 0;
+    const percentage = total > 0 ? Math.round(((mastered + learned) / total) * 100) : 0;
 
-    this.dashPercentage.textContent = `${percentage}%`;
-    this.dashProgressFill.style.width = `${percentage}%`;
-    this.dashMasteredCount.textContent = mastered;
-    this.dashTotalCount.textContent = total;
+    if (this.dashPercentage) this.dashPercentage.textContent = `${percentage}%`;
+    if (this.dashMasteredCount) this.dashMasteredCount.textContent = mastered;
+    if (this.dashTotalCount) this.dashTotalCount.textContent = total;
 
-    this.statCountMastered.textContent = mastered;
-    this.statCountLearning.textContent = learning;
-    this.statCountUnseen.textContent = unseen;
-    this.dashCarryoverCount.textContent = `${carryovers.length} 語`;
-    // 確認テストボタンの状態更新
+    // 4色スタックドプログレスバーの更新
+    if (this.dashSegMastered && total > 0) {
+      this.dashSegMastered.style.width = `${(mastered / total) * 100}%`;
+    }
+    if (this.dashSegLearned && total > 0) {
+      this.dashSegLearned.style.width = `${(learned / total) * 100}%`;
+    }
+    if (this.dashSegLearning && total > 0) {
+      this.dashSegLearning.style.width = `${(learning / total) * 100}%`;
+    }
+
+    // 凡例数値
+    if (this.dashLegendMastered) this.dashLegendMastered.textContent = mastered;
+    if (this.dashLegendLearned) this.dashLegendLearned.textContent = learned;
+    if (this.dashLegendLearning) this.dashLegendLearning.textContent = learning;
+    if (this.dashLegendUnseen) this.dashLegendUnseen.textContent = unseen;
+
+    // 4分割カード数値
+    if (this.statCountMastered) this.statCountMastered.textContent = mastered;
+    if (this.statCountLearned) this.statCountLearned.textContent = learned;
+    if (this.statCountLearning) this.statCountLearning.textContent = learning;
+    if (this.statCountUnseen) this.statCountUnseen.textContent = unseen;
+    if (this.dashCarryoverCount) this.dashCarryoverCount.textContent = `${carryovers.length} 語`;
+
+    // 確認テストボタンの状態更新 (👑 暗記済みのみが対象)
     if (mastered === 0) {
       this.btnStartConfirmTest.disabled = true;
-      this.btnStartConfirmTest.innerHTML = '<span>🔒</span> 合格した単語がまだありません (0語)';
+      this.btnStartConfirmTest.innerHTML = '<span>🔒</span> 暗記済みの単語がまだありません (0語)';
     } else {
       this.btnStartConfirmTest.disabled = false;
       const testCount = Math.min(mastered, 100);
-      this.btnStartConfirmTest.innerHTML = `<span>🚀</span> 合格単語から確認テスト（${testCount}問）を開始`;
+      this.btnStartConfirmTest.innerHTML = `<span>🚀</span> 👑 暗記済みから確認テスト（${testCount}問）を開始`;
     }
   }
 
   showCurrentWord(autoSpeak = false) {
     this.updateUndoButtonState();
     if (this.queue.length === 0) {
+      if (this.allWords && this.allWords.length > 0) {
+        this.cardNum.textContent = '完了';
+        this.wordText.textContent = '本日のセッション達成！🎉';
+        this.phoneticText.textContent = '';
+        this.meaningText.textContent = 全語が登録されています。お疲れ様でした！;
+        this.meaningContainer.classList.add('visible');
+        this.progressBar.style.width = '100%';
+        return;
+      }
       this.cardNum.textContent = '0 / 0';
-      this.wordText.textContent = '単語が登録されていません';
+      this.wordText.textContent = '単語データを読み込み中...';
       this.phoneticText.textContent = '';
-      this.meaningText.textContent = '参考書のスクショから単語を追加してください';
+      this.meaningText.textContent = '少々お待ちください（画面再読み込みで復帰します）';
       this.meaningContainer.classList.add('visible');
       this.progressBar.style.width = '0%';
+      setTimeout(async () => {
+        if (this.allWords.length === 0) {
+          await this.loadInitialSampleWords();
+          if (this.allWords.length > 0) {
+            await this.setupDeck();
+            this.showCurrentWord();
+          }
+        }
+      }, 1000);
       return;
     }
     if (this.currentIndex >= this.queue.length) {
@@ -357,8 +600,7 @@ class VocabSwipeApp {
       prevStatus: currentItem.status,
       prevCurrentRoundResult: this.currentRoundResults[currentItem.id],
       prevDeckResult: this.deck.results ? this.deck.results[currentItem.id] : undefined,
-      prevNightResult: this.deck.nightResults ? this.deck.nightResults[currentItem.id] : undefined,
-      prevMorningResult: this.deck.morningResults ? this.deck.morningResults[currentItem.id] : undefined,
+            prevMorningResult: this.deck.morningResults ? this.deck.morningResults[currentItem.id] : undefined,
       isPass: isPass
     });
 
@@ -429,6 +671,11 @@ class VocabSwipeApp {
         await db.setState('carryover_ids', filtered);
         item.status = lastAction.prevStatus || 'mastered';
         await db.saveWord(item);
+      } else if (this.currentMode === AppMode.SCREENING) {
+        item.status = lastAction.prevStatus || 'unseen';
+        await db.saveWord(item);
+        syncManager.markWordDirty(item.id);
+        this.updateDashboardStats();
       }
     }
 
@@ -458,15 +705,11 @@ class VocabSwipeApp {
       await db.setState('day_study_round_results', this.currentRoundResults);
     }
 
-    if (this.currentMode === AppMode.NIGHT_TEST) {
-      if (!this.deck.nightResults) this.deck.nightResults = {};
-      this.deck.nightResults[currentItem.id] = isPass;
-    } else if (this.currentMode === AppMode.MORNING_TEST) {
+    if (this.currentMode === AppMode.MORNING_TEST) {
       if (!this.deck.morningResults) this.deck.morningResults = {};
       this.deck.morningResults[currentItem.id] = isPass;
     }
 
-    // ★重要: 確認テストで間違えた場合、即座に明日の持ち越しキューへ移送
     if (this.currentMode === AppMode.CONFIRMATION_TEST) {
       if (!isPass) {
         const carryovers = await db.getState('carryover_ids', []);
@@ -476,7 +719,18 @@ class VocabSwipeApp {
         }
         currentItem.status = 'learning';
         await db.saveWord(currentItem);
+        syncManager.markWordDirty(currentItem.id);
       }
+    } else if (this.currentMode === AppMode.SCREENING) {
+      // スクリーニング: ◯なら即座に完全暗記済み(mastered)へ、✕なら学習中(learning)へ
+      currentItem.status = isPass ? 'mastered' : 'learning';
+      await db.saveWord(currentItem);
+      syncManager.markWordDirty(currentItem.id);
+      
+      // 途中経過もDBに保存（リロードしても絶対に消えないようにする）
+      await db.setState('screening_results', this.deck.results);
+      await db.setState('screening_last_index', this.currentIndex);
+      this.updateDashboardStats();
     }
 
     const logicalDate = engine.getLogicalDate();
@@ -535,6 +789,52 @@ class VocabSwipeApp {
     this.btnResetFull.style.display = 'none';
     this.btnNextSession.textContent = 'もう一度回す';
 
+    if (this.currentMode === AppMode.SCREENING) {
+      const results = this.deck.results || {};
+      let knownCount = 0;
+      let unknownCount = 0;
+
+      // 念のため全判定結果をDB＆クラウドへ確実にコミット
+      for (const [widStr, isPass] of Object.entries(results)) {
+        const wid = parseInt(widStr, 10);
+        const w = this.allWords.find(x => x.id === wid);
+        if (w) {
+          if (isPass) {
+            w.status = 'mastered';
+            knownCount++;
+          } else {
+            w.status = 'learning';
+            unknownCount++;
+          }
+          await db.saveWord(w);
+          syncManager.markWordDirty(w.id);
+        }
+      }
+
+      this.completeIcon.textContent = '🎉';
+      this.completeTitle.textContent = 'スクリーニング完了！';
+      this.completeDesc.innerHTML = `知っている単語 <strong>${knownCount}</strong> 語を【暗記済み】へ移動しました！<br>知らない単語 <strong>${unknownCount}</strong> 語が日々の100問デッキで集中的に出題されます。`;
+
+      this.btnNextSession.textContent = '日中スキマ学習へ進む';
+
+      // 日中スキマ学習デッキを再構築（知っている単語を除外して再編成）
+      const logicalDate = engine.getLogicalDate();
+      this.deck = engine.generateDailyDeck(this.allWords, [], null);
+      await db.setState(`deck_${logicalDate}`, this.deck);
+      syncManager.markDeckDirty();
+
+      // クラウドへ即座に送信
+      syncManager.sync();
+
+      this.btnNextSession.onclick = async () => {
+        this.currentMode = AppMode.DAY_STUDY;
+        await this.setupDeck();
+        this.completeOverlay.style.display = 'none';
+      };
+      await this.updateDashboardStats();
+      return;
+    }
+
     if (this.currentMode === AppMode.CONFIRMATION_TEST) {
       const failed = [];
       const passed = [];
@@ -547,42 +847,63 @@ class VocabSwipeApp {
       this.completeTitle.textContent = '実力テスト完了！';
       this.completeDesc.innerHTML = `正解: <strong>${passed.length}</strong> 問<br>間違えた <strong>${failed.length}</strong> 語は明日の100単語デッキに組み込みました！`;
       await this.updateDashboardStats();
+
     } else if (this.currentMode === AppMode.MORNING_TEST) {
       const failedIds = [];
       const passedIds = [];
+      const reviewSet = new Set(this.deck.reviewWordIds || []);
+
+      let promotedToMastered = 0;
+      let promotedToLearned = 0;
+
       for (const [widStr, ok] of Object.entries(this.deck.morningResults || {})) {
         const wid = parseInt(widStr, 10);
-        if (!ok) failedIds.push(wid);
-        else passedIds.push(wid);
+        const w = this.allWords.find(x => x.id === wid);
+        if (!w) continue;
+
+        if (ok) {
+          passedIds.push(wid);
+          if (reviewSet.has(wid)) {
+            // 抜き打ち20問に合格！ ➔ 👑 暗記済み (完全定着) へ昇格！
+            w.status = 'mastered';
+            promotedToMastered++;
+          } else {
+            // 昨日の単語に合格！ ➔ 📘 学習済み (1次合格) へ昇格！
+            w.status = 'learned';
+            promotedToLearned++;
+          }
+          await db.saveWord(w);
+          syncManager.markWordDirty(w.id);
+        } else {
+          // 不正解 ➔ 🔥 学習中 (learning) に転落し、今日のデッキへ持ち越し
+          failedIds.push(wid);
+          w.status = 'learning';
+          await db.saveWord(w);
+          syncManager.markWordDirty(w.id);
+        }
       }
 
       // 1. 持ち越し（✕だった単語）を保存
       await db.setState('carryover_ids', failedIds);
 
-      // 2. 合格した単語（◯）を weekly_pending（習得済み）に更新してDB保存
-      for (const pid of passedIds) {
-        const w = this.allWords.find(x => x.id === pid);
-        if (w) {
-          w.status = 'weekly_pending';
-          await db.saveWord(w);
-        }
-      }
-
-      // 3. 【最重要】本日の日中スキマ学習デッキを完全再生成！
-      // 朝テストで合格した単語は除外され、✕だった持ち越し単語 ＋ 新規単語で本日の100問を構築
+      // 2. 本日の日中スキマ学習デッキを完全再生成！
       const logicalDate = engine.getLogicalDate();
       this.deck = engine.generateDailyDeck(this.allWords, failedIds, null);
       await db.setState(`deck_${logicalDate}`, this.deck);
+      syncManager.markDeckDirty();
 
-      // 日中スキマ学習の進捗状態を初期化（今日の新しい100問からスタートできる）
+      // 日中スキマ学習の進捗状態を初期化
       await db.setState('day_study_started_at', null);
       await db.setState('day_study_round_failed_ids', null);
       await db.setState('day_study_current_index', 0);
       await db.setState('day_study_round_results', {});
 
+      // 3. ストリーク更新
+      const currentStreak = await this.recordStreakSuccess();
+
       this.completeIcon.textContent = '🌅';
       this.completeTitle.textContent = '朝のテスト完了！';
-      this.completeDesc.innerHTML = `合格: <strong>${passedIds.length}</strong> 単語（マスター済へ移動）<br>未記憶: <strong>${failedIds.length}</strong> 単語（本日の100問へスライド持ち越し）<br><br>※本日の昼の100単語デッキが更新されました！`;
+      this.completeDesc.innerHTML = `👑 <strong>${promotedToMastered}</strong> 語が【暗記済み（完全定着）】へ昇格！<br>📘 <strong>${promotedToLearned}</strong> 語が【学習済み（1次合格）】へ昇格！<br>⚠️ <strong>${failedIds.length}</strong> 語を本日の100問デッキへ持ち越し。<br><br>🔥 <strong>連続学習ストリーク: ${currentStreak}日目達成！</strong>`;
       this.btnNextSession.textContent = '☀️ 本日の日中スキマ学習を始める';
       await this.updateDashboardStats();
     } else {
@@ -704,6 +1025,34 @@ class VocabSwipeApp {
   bindEvents() {
     // タブ切り替え
     
+    // クラウド同期モーダル
+    if (this.btnSync && this.syncModal) {
+      this.btnSync.addEventListener('click', async () => {
+        await this.refreshSyncModalInfo();
+        this.syncModal.classList.add('open');
+      });
+
+      if (this.syncModalCloseBtn) {
+        this.syncModalCloseBtn.addEventListener('click', () => {
+          this.syncModal.classList.remove('open');
+        });
+      }
+
+      this.syncModal.addEventListener('click', (e) => {
+        if (e.target === this.syncModal) {
+          this.syncModal.classList.remove('open');
+        }
+      });
+
+      if (this.btnDoSync) {
+        this.btnDoSync.addEventListener('click', () => this.handleManualSync());
+      }
+
+      if (this.btnForceUpload) {
+        this.btnForceUpload.addEventListener('click', () => this.handleForceUpload());
+      }
+    }
+
     // モード切り替えモーダル
     this.modeModal = document.getElementById('mode-modal');
     this.modalCloseBtn = document.getElementById('modal-close-btn');
@@ -727,12 +1076,23 @@ class VocabSwipeApp {
 
       document.querySelectorAll('.mode-option-item').forEach(item => {
         item.addEventListener('click', async () => {
-          this.currentMode = item.dataset.mode;
+          const selectedMode = item.dataset.mode;
           this.modeModal.classList.remove('open');
-          await this.setupDeck();
-          this.switchView('study');
+          if (selectedMode === AppMode.SCREENING) {
+            await this.startScreeningMode();
+          } else {
+            this.currentMode = selectedMode;
+            await this.setupDeck();
+            this.switchView('study');
+          }
         });
       });
+
+      if (this.btnStartScreening) {
+        this.btnStartScreening.addEventListener('click', async () => {
+          await this.startScreeningMode();
+        });
+      }
     }
 
     this.tabBtnStudy.addEventListener('click', () => this.switchView('study'));

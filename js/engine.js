@@ -3,11 +3,10 @@
  */
 
 export const AppMode = {
-  DAY_STUDY: 'day_study',         // 日中スキマ学習
-  NIGHT_TEST: 'night_test',       // 夜のテスト
-  MORNING_TEST: 'morning_test',   // 翌朝のテスト
-  SUNDAY_REVIEW: 'sunday_review', // 日曜総復習
-  CONFIRMATION_TEST: 'confirm_test' // 実力確認テスト (100問)
+  DAY_STUDY: 'day_study',         // ☀️ 日中スキマ学習 (100語)
+  MORNING_TEST: 'morning_test',   // 🌅 翌朝の復習テスト (120語)
+  CONFIRMATION_TEST: 'confirm_test', // 🎯 実力確認テスト (100問)
+  SCREENING: 'screening'          // 🔍 全体初回スクリーニング
 };
 
 export class MethodEngine {
@@ -40,63 +39,51 @@ export class MethodEngine {
   }
 
   getRecommendedMode(now = new Date()) {
-    const day = this.getLogicalDayOfWeek(now);
-    if (day === 0) return AppMode.SUNDAY_REVIEW;
-
     const hour = now.getHours();
-    if (hour >= 21 || hour < 3) return AppMode.NIGHT_TEST;
-    else if (hour >= 3 && hour < 12) return AppMode.MORNING_TEST;
-    else return AppMode.DAY_STUDY;
+    if (hour >= 3 && hour < 12) return AppMode.MORNING_TEST;
+    return AppMode.DAY_STUDY;
   }
 
   generateDailyDeck(allWords, carryoverIds = [], existingDeck = null) {
     const logicalDate = this.getLogicalDate();
-    const dayOfWeek = this.getLogicalDayOfWeek();
     const wordMap = new Map(allWords.map(w => [w.id, w]));
 
-    if (existingDeck && existingDeck.date === logicalDate && existingDeck.mode !== AppMode.CONFIRMATION_TEST) {
-      // 既存デッキの中に、朝テスト等で合格（weekly_pending / mastered）した単語が含まれていないか検査
-      const activeIds = (existingDeck.wordIds || []).filter(id => {
+    // 既存デッキが DAY_STUDY かつ 今日の日付の場合のみ再利用
+    if (existingDeck && existingDeck.date === logicalDate && existingDeck.mode === AppMode.DAY_STUDY) {
+      // 合格済み単語を除外
+      let activeIds = (existingDeck.wordIds || []).filter(id => {
         const w = wordMap.get(id);
-        return w && w.status !== 'weekly_pending' && w.status !== 'mastered';
+        return w && w.status !== 'weekly_pending' && w.status !== 'learned' && w.status !== 'mastered';
       });
 
-      // 合格した単語が除外されて100語未満になった場合は、新規単語(unseen)で100語まで補充する
-      if (activeIds.length < (existingDeck.wordIds || []).length) {
-        const needed = this.DAILY_LIMIT - activeIds.length;
-        if (needed > 0) {
-          const usedSet = new Set(activeIds);
-          const unseen = allWords.filter(w => (!w.status || w.status === 'unseen' || w.status === 'new') && !usedSet.has(w.id));
-          const newIds = unseen.slice(0, needed).map(w => w.id);
-          activeIds.push(...newIds);
-        }
-        existingDeck.wordIds = activeIds;
+      // 100語を超えている場合は100語にカット
+      if (activeIds.length > this.DAILY_LIMIT) {
+        activeIds = activeIds.slice(0, this.DAILY_LIMIT);
       }
+
+      // 100語未満の場合は新規単語(unseen)で100語きっかりまで補充
+      if (activeIds.length < this.DAILY_LIMIT) {
+        const needed = this.DAILY_LIMIT - activeIds.length;
+        const usedSet = new Set(activeIds);
+        const unseen = allWords.filter(w => (!w.status || w.status === 'unseen' || w.status === 'new') && !usedSet.has(w.id));
+        const newIds = unseen.slice(0, needed).map(w => w.id);
+        activeIds.push(...newIds);
+      }
+      existingDeck.wordIds = activeIds;
       return existingDeck;
     }
 
-    if (dayOfWeek === 0) {
-      const weeklyIds = allWords.filter(w => w.status === 'weekly_pending' || w.status === 'mastered').map(w => w.id);
-      this.shuffle(weeklyIds);
-      return {
-        date: logicalDate,
-        mode: AppMode.SUNDAY_REVIEW,
-        wordIds: weeklyIds,
-        results: {}
-      };
-    }
-
     const selectedIds = [];
-    // 1. 持ち越し単語（未習得のもののみ）
+    // 1. 持ち越し単語（未習得のもののみ、最大100語まで）
     for (const cid of carryoverIds) {
       if (selectedIds.length >= this.DAILY_LIMIT) break;
       const w = wordMap.get(cid);
-      if (w && w.status !== 'weekly_pending' && w.status !== 'mastered') {
+      if (w && w.status !== 'weekly_pending' && w.status !== 'learned' && w.status !== 'mastered') {
         selectedIds.push(cid);
       }
     }
 
-    // 2. 新規単語（unseen）の補充
+    // 2. 新規単語（unseen）で100語きっかりまで補充
     const needed = this.DAILY_LIMIT - selectedIds.length;
     if (needed > 0) {
       const usedSet = new Set(selectedIds);
@@ -110,18 +97,69 @@ export class MethodEngine {
     return {
       date: logicalDate,
       mode: AppMode.DAY_STUDY,
-      wordIds: selectedIds,
-      nightResults: {},
-      morningResults: {}
+      wordIds: selectedIds.slice(0, this.DAILY_LIMIT),
+      results: {}
     };
   }
 
   /**
    * これまでに覚えた単語から100問の確認テストデッキを生成
    */
+  /**
+   * 🌅 翌朝の復習テストデッキの生成
+   * 内訳: 昨日の単語(約100問) + 過去の「学習済み」から抜き打ち復習(最大20問)
+   */
+  generateMorningDeck(allWords, yesterdayDeck = null, todayDeck = null, reviewLimit = 20) {
+    const logicalDate = this.getLogicalDate();
+    const wordMap = new Map(allWords.map(w => [w.id, w]));
+    let baseWordIds = [];
+
+    if (yesterdayDeck && yesterdayDeck.wordIds && yesterdayDeck.wordIds.length > 0) {
+      baseWordIds = [...yesterdayDeck.wordIds];
+    } else if (todayDeck && todayDeck.wordIds && todayDeck.wordIds.length > 0) {
+      baseWordIds = [...todayDeck.wordIds];
+    }
+
+    // baseWordIds は必ず最大100問に制限
+    baseWordIds = baseWordIds.slice(0, 100);
+
+    // もし昨日の単語が100問に満たない場合は、学習中・未着手単語から100問まで補充
+    if (baseWordIds.length < 100) {
+      const needed = 100 - baseWordIds.length;
+      const usedSet = new Set(baseWordIds);
+      const candidates = allWords.filter(w => w.status !== 'mastered' && !usedSet.has(w.id));
+      const addIds = candidates.slice(0, needed).map(w => w.id);
+      baseWordIds.push(...addIds);
+    }
+
+    // 過去の「学習済み (learned / weekly_pending)」単語から抜き打ち20問を抽出
+    const baseSet = new Set(baseWordIds);
+    const learnedPool = allWords.filter(w => (w.status === 'learned' || w.status === 'weekly_pending') && !baseSet.has(w.id));
+    
+    let reviewIds = [];
+    if (learnedPool.length > 0) {
+      const shuffledLearned = this.shuffle([...learnedPool.map(w => w.id)]);
+      reviewIds = shuffledLearned.slice(0, reviewLimit);
+    }
+
+    // 昨日の100問 + 抜き打ち20問 ＝ 計120問
+    const combinedIds = [...baseWordIds, ...reviewIds];
+    this.shuffle(combinedIds);
+
+    return {
+      date: logicalDate,
+      mode: AppMode.MORNING_TEST,
+      wordIds: combinedIds,
+      reviewWordIds: reviewIds, // 抜き打ち20問の単語IDセット
+      morningResults: {}
+    };
+  }
+
+  /**
+   * 🎯 暗記済み確認テストデッキを生成 (👑 暗記済みのみが対象)
+   */
   generateConfirmationTestDeck(allWords, limit = 100) {
-    // 実際に朝テスト・日曜テストで合格した単語のみを対象にする
-    const pool = allWords.filter(w => w.status === 'mastered' || w.status === 'weekly_pending');
+    const pool = allWords.filter(w => w.status === 'mastered');
     if (pool.length === 0) {
       return {
         date: this.getLogicalDate(),
