@@ -1,16 +1,13 @@
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>VocabSwipe - 100単語スワイプ学習</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#090d16">
   <link rel="stylesheet" href="css/style.css">
 </head>
-
 <body>
 
   <!-- Top Navigation & View Switcher -->
@@ -36,8 +33,8 @@
           <span class="sound-chip-label">日</span>
         </button>
       </div>
-      <span class="timer-badge" id="header-timer-badge" style="display: none;" title="30分リセットまでの残り時間">⏳ <span
-          id="header-timer-text">30:00</span></span>
+      <span class="streak-badge" id="header-streak-badge" title="連続学習日数">🔥 <span id="header-streak-text">0日連続</span></span>
+      <span class="timer-badge" id="header-timer-badge" style="display: none;" title="30分リセットまでの残り時間">⏳ <span id="header-timer-text">30:00</span></span>
       <span class="mode-badge" id="mode-badge" title="タップしてモード切り替え">日中スキマ学習 ▾</span>
       <button class="sync-badge-btn" id="btn-sync" title="クラウド同期 (タップで詳細)">
         <span id="sync-icon">☁️</span>
@@ -54,7 +51,7 @@
   <!-- VIEW 1: STUDY (Default: 開いて即学習できる画面) -->
   <div class="view-container" id="view-study">
     <main class="card-stage">
-
+      
       <div class="swipe-card" id="swipe-card">
         <div class="stamp stamp-pass">◯ 分かる</div>
         <div class="stamp stamp-fail">✕ 分からない</div>
@@ -111,10 +108,9 @@
     <!-- Bottom Controls -->
     <footer class="bottom-controls">
       <button class="circle-btn btn-undo" id="btn-undo" title="前の単語に戻る (Z / Backspace)" disabled>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 7v6h6" />
-          <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7v6h6"/>
+          <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
         </svg>
         <span class="btn-label">戻る</span>
       </button>
@@ -123,14 +119,13 @@
         ✕
         <span class="btn-label">忘れた</span>
       </button>
-
+      
       <button class="circle-btn btn-flip-quick" id="btn-flip" title="めくる">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-          <path d="M21 3v5h-5" />
-          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-          <path d="M3 21v-5h5" />
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+          <path d="M21 3v5h-5"/>
+          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+          <path d="M3 21v-5h5"/>
         </svg>
         <span class="btn-label">めくる</span>
       </button>
@@ -145,31 +140,45 @@
   <!-- VIEW 2: PROGRESS DASHBOARD (全体進捗 ＆ 確認テスト100問) -->
   <div class="view-container" id="view-progress">
     <div class="dashboard-container">
-
+      
       <!-- Overall Progress Hero Card -->
       <div class="progress-hero-card">
         <div class="hero-top">
           <span class="hero-title">全体の習得進捗</span>
           <span class="hero-percentage" id="dash-percentage">0%</span>
         </div>
-        <div class="hero-bar-track">
-          <div class="hero-bar-fill" id="dash-progress-fill"></div>
+        <!-- 4-Color Stacked Progress Bar -->
+        <div class="hero-bar-track stacked-bar">
+          <div class="hero-bar-segment seg-mastered" id="dash-seg-mastered" title="👑 暗記済み" style="width: 0%;"></div>
+          <div class="hero-bar-segment seg-learned" id="dash-seg-learned" title="📘 学習済み" style="width: 0%;"></div>
+          <div class="hero-bar-segment seg-learning" id="dash-seg-learning" title="🔥 学習中" style="width: 0%;"></div>
+        </div>
+        <!-- Legend / Stats Row -->
+        <div class="hero-legend-row">
+          <div class="legend-item"><span class="legend-dot dot-mastered"></span> 👑 暗記済み: <strong id="dash-legend-mastered">0</strong></div>
+          <div class="legend-item"><span class="legend-dot dot-learned"></span> 📘 学習済み: <strong id="dash-legend-learned">0</strong></div>
+          <div class="legend-item"><span class="legend-dot dot-learning"></span> 🔥 学習中: <strong id="dash-legend-learning">0</strong></div>
+          <div class="legend-item"><span class="legend-dot dot-unseen"></span> 💤 未着手: <strong id="dash-legend-unseen">0</strong></div>
         </div>
         <div class="hero-stats-row">
-          <span>習得済み: <strong id="dash-mastered-count" style="color: #34d399;">0</strong> 単語</span>
-          <span>全 <strong id="dash-total-count">0</strong> 単語中</span>
+          <span>👑 完全暗記: <strong id="dash-mastered-count" style="color: #10b981;">0</strong> 語</span>
+          <span>全 <strong id="dash-total-count">0</strong> 語中</span>
         </div>
       </div>
 
-      <!-- 3-Status Breakdown Grid -->
-      <div class="status-grid">
+      <!-- 4-Status Breakdown Grid -->
+      <div class="status-grid grid-4col">
         <div class="status-card card-mastered">
           <span class="status-card-num" id="stat-count-mastered">0</span>
-          <span class="status-card-label">✅ 習得済み</span>
+          <span class="status-card-label">👑 暗記済み</span>
+        </div>
+        <div class="status-card card-learned">
+          <span class="status-card-num" id="stat-count-learned">0</span>
+          <span class="status-card-label">📘 学習済み</span>
         </div>
         <div class="status-card card-learning">
           <span class="status-card-num" id="stat-count-learning">0</span>
-          <span class="status-card-label">🔥 学習中・持越</span>
+          <span class="status-card-label">🔥 学習中</span>
         </div>
         <div class="status-card card-unseen">
           <span class="status-card-num" id="stat-count-unseen">0</span>
@@ -183,17 +192,34 @@
         <strong id="dash-carryover-count">0 語</strong>
       </div>
 
+      <!-- Initial Screening Hero Card -->
+      <div class="test-hero-card screening-card" style="margin-bottom: 14px; border: 1px solid rgba(56, 189, 248, 0.3); background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(99, 102, 241, 0.06));">
+        <div class="test-card-header">
+          <span class="test-card-icon" style="background: rgba(56, 189, 248, 0.2);">🔍</span>
+          <div>
+            <h3 class="test-card-title" style="color: #38bdf8;">知っている単語の初回スクリーニング</h3>
+          </div>
+        </div>
+        <p class="test-card-desc">
+          全単語の中から「すでに知っている単語」をサクサク仕分けて【習得済み】へ移動させます。<br>
+          <strong>※知っている単語を除外することで、日々の100問デッキに「知らない単語」だけが厳選されて登場します。</strong>
+        </p>
+        <button class="btn-start-test" id="btn-start-screening" style="background: linear-gradient(135deg, #0284c7, #6366f1);">
+          <span>⚡</span> 初回スクリーニングを開始する
+        </button>
+      </div>
+
       <!-- 100-Question Confirmation Test Card -->
       <div class="test-hero-card">
         <div class="test-card-header">
           <span class="test-card-icon">🎯</span>
           <div>
-            <h3 class="test-card-title">今までの確認テスト（100問）</h3>
+            <h3 class="test-card-title">👑 暗記済み確認テスト（100問）</h3>
           </div>
         </div>
         <p class="test-card-desc">
-          これまでに合格した単語プールからランダムに100問を出題します。<br>
-          <strong>※ここで間違えた単語は、明日の通常100単語デッキへ自動的にスライド（再組み込み）されます。</strong>
+          これまでに【暗記済み】になった単語プールからランダムに100問を出題します。<br>
+          <strong>※ここで間違えた単語は、明日の通常100単語デッキへ自動的にスライド（学習中に転落）されます。</strong>
         </p>
         <button class="btn-start-test" id="btn-start-confirm-test">
           <span>🚀</span> 確認テスト（100問）を開始
@@ -212,33 +238,26 @@
         <button class="sheet-close-btn" id="modal-close-btn">✕</button>
       </div>
       <div class="mode-option-list">
+        <div class="mode-option-item" data-mode="screening">
+          <div class="option-left">
+            <span class="option-title">🔍 全体初回スクリーニング</span>
+            <span class="option-desc">知っている単語をサクサク仕分けて【暗記済み】に移動</span>
+          </div>
+          <span class="option-badge" style="color: #38bdf8;">仕分け</span>
+        </div>
         <div class="mode-option-item" data-mode="day_study">
           <div class="option-left">
-            <span class="option-title">☀️ 日中スキマ学習</span>
-            <span class="option-desc">スキマ時間に何度でもパラパラめくって確認</span>
+            <span class="option-title">☀️ 日中スキマ学習（100語）</span>
+            <span class="option-desc">持ち越し＋新単語の100語をスキマ時間に何度でも確認</span>
           </div>
-          <span class="option-badge">いつでも</span>
-        </div>
-        <div class="mode-option-item" data-mode="night_test">
-          <div class="option-left">
-            <span class="option-title">🌙 夜のテスト (10秒)</span>
-            <span class="option-desc">寝る前に本日の100問を一気にテスト</span>
-          </div>
-          <span class="option-badge">21:00〜</span>
+          <span class="option-badge">100語</span>
         </div>
         <div class="mode-option-item" data-mode="morning_test">
           <div class="option-left">
-            <span class="option-title">🌅 翌朝の復習テスト</span>
-            <span class="option-desc">昨日の単語をテスト（✕は今日へスライド持ち越し）</span>
+            <span class="option-title">🌅 翌朝の復習テスト（120語）</span>
+            <span class="option-desc">昨日の100語 ＋ 過去の学習済みから抜き打ち20語をテスト</span>
           </div>
-          <span class="option-badge">03:00〜</span>
-        </div>
-        <div class="mode-option-item" data-mode="sunday_review">
-          <div class="option-left">
-            <span class="option-title">👑 日曜総復習テスト</span>
-            <span class="option-desc">今週覚えた単語を一気に総復習（完全習得へ）</span>
-          </div>
-          <span class="option-badge">日曜日</span>
+          <span class="option-badge" style="color: #f59e0b;">120語</span>
         </div>
       </div>
     </div>
@@ -282,5 +301,4 @@
 
   <script type="module" src="js/app.js"></script>
 </body>
-
 </html>
