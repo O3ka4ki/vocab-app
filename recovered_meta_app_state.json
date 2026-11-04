@@ -1,0 +1,160 @@
+{
+  "name": "projects/vocab-app-e76ce/databases/(default)/documents/meta/app_state",
+  "fields": {
+    "deck": {
+      "nullValue": null
+    },
+    "updatedAt": {
+      "integerValue": "1793747588648"
+    },
+    "carryovers": {
+      "arrayValue": {
+        "values": [
+          {
+            "integerValue": "636"
+          },
+          {
+            "integerValue": "641"
+          },
+          {
+            "integerValue": "957"
+          },
+          {
+            "integerValue": "969"
+          },
+          {
+            "integerValue": "979"
+          },
+          {
+            "integerValue": "983"
+          },
+          {
+            "integerValue": "985"
+          },
+          {
+            "integerValue": "988"
+          },
+          {
+            "integerValue": "991"
+          },
+          {
+            "integerValue": "992"
+          },
+          {
+            "integerValue": "996"
+          },
+          {
+            "integerValue": "998"
+          },
+          {
+            "integerValue": "999"
+          },
+          {
+            "integerValue": "1001"
+          },
+          {
+            "integerValue": "1006"
+          },
+          {
+            "integerValue": "1009"
+          },
+          {
+            "integerValue": "1011"
+          },
+          {
+            "integerValue": "1020"
+          },
+          {
+            "integerValue": "1024"
+          },
+          {
+            "integerValue": "1025"
+          },
+          {
+            "integerValue": "1026"
+          },
+          {
+            "integerValue": "1027"
+          },
+          {
+            "integerValue": "1030"
+          },
+          {
+            "integerValue": "1048"
+          },
+          {
+            "integerValue": "1051"
+          },
+          {
+            "integerValue": "1052"
+          },
+          {
+            "integerValue": "1053"
+          },
+          {
+            "integerValue": "1057"
+          },
+          {
+            "integerValue": "1058"
+          },
+          {
+            "integerValue": "1061"
+          },
+          {
+            "integerValue": "1063"
+          },
+          {
+            "integerValue": "1065"
+          },
+          {
+            "integerValue": "1066"
+          },
+          {
+            "integerValue": "1070"
+          },
+          {
+            "integerValue": "1071"
+          },
+          {
+            "integerValue": "1072"
+          },
+          {
+            "integerValue": "1073"
+          },
+          {
+            "integerValue": "1074"
+          },
+          {
+            "integerValue": "1075"
+          },
+          {
+            "integerValue": "1076"
+          },
+          {
+            "integerValue": "1079"
+          },
+          {
+            "integerValue": "1080"
+          },
+          {
+            "integerValue": "1085"
+          },
+          {
+            "integerValue": "1086"
+          },
+          {
+            "integerValue": "1087"
+          },
+          {
+            "integerValue": "1089"
+          }
+        ]
+      }
+    },
+    "logicalDate": {
+      "stringValue": ""
+    }
+  },
+  "createTime": "2026-10-29T22:16:26.721068Z",
+  "updateTime": "2026-11-03T23:13:06.756972Z"
+}
