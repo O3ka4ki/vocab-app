@@ -318,17 +318,21 @@ class VocabSwipeApp {
 
   async setupDeck() {
     const logicalDate = engine.getLogicalDate();
-    const existingDeck = await db.getState(`deck_${logicalDate}`, null);
-    const carryovers = await db.getState('carryover_ids', []);
-
+    const wordMap = new Map(this.allWords.map(w => [w.id, w]));
     this.currentRoundResults = {};
     this.history = [];
-    this.deck = engine.generateDailyDeck(this.allWords, carryovers, existingDeck);
-    await db.setState(`deck_${logicalDate}`, this.deck);
-
-    const wordMap = new Map(this.allWords.map(w => [w.id, w]));
 
     if (this.currentMode === AppMode.DAY_STUDY) {
+      // ☀️ 日中スキマ学習 (100語)
+      const existingDeck = await db.getState(`deck_${logicalDate}`, null);
+      const carryovers = await db.getState('carryover_ids', []);
+
+      this.deck = engine.generateDailyDeck(this.allWords, carryovers, existingDeck);
+      await db.setState(`deck_${logicalDate}`, this.deck);
+      await db.setState('last_day_study_deck', this.deck); // 直近学習デッキとして確実に保存！
+      await db.setState('last_logical_date', logicalDate);
+      syncManager.markDeckDirty();
+
       // 30分経過チェック
       const startedAt = await db.getState('day_study_started_at', null);
       if (startedAt && (Date.now() - startedAt >= 30 * 60 * 1000)) {
@@ -376,14 +380,29 @@ class VocabSwipeApp {
       }
     } else if (this.currentMode === AppMode.MORNING_TEST) {
       // 🌅 翌朝の復習テスト: 昨日の単語(約100問) + 過去の学習済みから抜き打ち20問
-      const yesterdayDate = engine.getYesterdayLogicalDate();
-      const yesterdayDeck = await db.getState(`deck_${yesterdayDate}`, null);
+      let morningDeck = await db.getState(`morning_deck_${logicalDate}`, null);
 
-      this.deck = engine.generateMorningDeck(this.allWords, yesterdayDeck, this.deck, 20);
-      this.queue = this.deck.wordIds.map(id => wordMap.get(id)).filter(Boolean);
-      this.currentIndex = 0;
+      if (!morningDeck) {
+        const yesterdayDate = engine.getYesterdayLogicalDate();
+        // 昨日のスキマ学習デッキを多重フォールバックで確実に取得！
+        const yesterdayDeck = await db.getState(`deck_${yesterdayDate}`, null)
+                           || await db.getState('last_day_study_deck', null)
+                           || await db.getState(`deck_${logicalDate}`, null); // 昨夜やったデッキが同一日付にある場合も拾う！
+
+        morningDeck = engine.generateMorningDeck(this.allWords, yesterdayDeck, null, 20);
+        await db.setState(`morning_deck_${logicalDate}`, morningDeck);
+      }
+
+      this.deck = morningDeck;
+      this.queue = (this.deck.wordIds || []).map(id => wordMap.get(id)).filter(Boolean);
+      this.currentIndex = await db.getState('morning_test_current_index', 0);
+      this.currentRoundResults = this.deck.morningResults || {};
+      if (this.currentIndex >= this.queue.length) {
+        this.currentIndex = 0;
+      }
     } else {
-      this.queue = this.deck.wordIds.map(id => wordMap.get(id)).filter(Boolean);
+      this.deck = engine.generateConfirmationTestDeck(this.allWords, 100);
+      this.queue = (this.deck.wordIds || []).map(id => wordMap.get(id)).filter(Boolean);
       this.currentIndex = 0;
     }
 
@@ -715,13 +734,14 @@ class VocabSwipeApp {
     }
 
     // 6. DB進行状況の巻き戻し
+    const logicalDate = engine.getLogicalDate();
     if (this.currentMode === AppMode.DAY_STUDY) {
       await db.setState('day_study_current_index', this.currentIndex);
       await db.setState('day_study_round_results', this.currentRoundResults);
-    }
-    const logicalDate = engine.getLogicalDate();
-    if (this.currentMode !== AppMode.CONFIRMATION_TEST) {
       await db.setState(`deck_${logicalDate}`, this.deck);
+    } else if (this.currentMode === AppMode.MORNING_TEST) {
+      await db.setState('morning_test_current_index', this.currentIndex);
+      await db.setState(`morning_deck_${logicalDate}`, this.deck);
     }
 
     // 7. 直前の単語を表示（音声も再生）
@@ -729,6 +749,8 @@ class VocabSwipeApp {
   }
 
   async persistAnswerProgress(currentItem, isPass) {
+    const logicalDate = engine.getLogicalDate();
+
     // 日中スキマ学習: 最初の1問回答時に開始時刻をセット（30分タイマースタート）
     if (this.currentMode === AppMode.DAY_STUDY) {
       const startedAt = await db.getState('day_study_started_at', null);
@@ -738,14 +760,14 @@ class VocabSwipeApp {
       }
       await db.setState('day_study_current_index', this.currentIndex);
       await db.setState('day_study_round_results', this.currentRoundResults);
-    }
-
-    if (this.currentMode === AppMode.MORNING_TEST) {
+      await db.setState(`deck_${logicalDate}`, this.deck);
+      await db.setState('last_day_study_deck', this.deck);
+    } else if (this.currentMode === AppMode.MORNING_TEST) {
       if (!this.deck.morningResults) this.deck.morningResults = {};
       this.deck.morningResults[currentItem.id] = isPass;
-    }
-
-    if (this.currentMode === AppMode.CONFIRMATION_TEST) {
+      await db.setState('morning_test_current_index', this.currentIndex);
+      await db.setState(`morning_deck_${logicalDate}`, this.deck);
+    } else if (this.currentMode === AppMode.CONFIRMATION_TEST) {
       if (!isPass) {
         const carryovers = await db.getState('carryover_ids', []);
         if (!carryovers.includes(currentItem.id)) {
@@ -766,11 +788,6 @@ class VocabSwipeApp {
       await db.setState('screening_results', this.deck.results);
       await db.setState('screening_last_index', this.currentIndex);
       this.updateDashboardStats();
-    }
-
-    const logicalDate = engine.getLogicalDate();
-    if (this.currentMode !== AppMode.CONFIRMATION_TEST) {
-      await db.setState(`deck_${logicalDate}`, this.deck);
     }
   }
 
@@ -925,7 +942,13 @@ class VocabSwipeApp {
       const logicalDate = engine.getLogicalDate();
       this.deck = engine.generateDailyDeck(this.allWords, failedIds, null);
       await db.setState(`deck_${logicalDate}`, this.deck);
+      await db.setState('last_day_study_deck', this.deck);
+      await db.setState('last_logical_date', logicalDate);
       syncManager.markDeckDirty();
+
+      // 朝テストの進行状況を初期化
+      await db.setState('morning_test_current_index', 0);
+      await db.setState(`morning_deck_${logicalDate}`, null);
 
       // 日中スキマ学習の進捗状態を初期化
       await db.setState('day_study_started_at', null);

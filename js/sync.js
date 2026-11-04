@@ -274,7 +274,8 @@ class SyncManager {
       // ローカルの持ち越しリストや最新状態をクラウドへ保存
       const carryovers = await db.getState('carryover_ids', []);
       const logicalDate = (await db.getState('last_logical_date', '')) || '';
-      const deck = logicalDate ? await db.getState(`deck_${logicalDate}`, null) : null;
+      const deck = (await db.getState('last_day_study_deck', null))
+                || (logicalDate ? await db.getState(`deck_${logicalDate}`, null) : null);
 
       await setDoc(metaDocRef, {
         carryovers,
@@ -293,6 +294,12 @@ class SyncManager {
           const localCarryovers = await db.getState('carryover_ids', null);
           if (!localCarryovers || localCarryovers.length === 0) {
             await db.setState('carryover_ids', data.carryovers);
+          }
+        }
+        if (data.deck) {
+          const localDeck = await db.getState('last_day_study_deck', null);
+          if (!localDeck) {
+            await db.setState('last_day_study_deck', data.deck);
           }
         }
       }
