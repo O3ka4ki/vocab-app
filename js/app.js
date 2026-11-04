@@ -5,7 +5,7 @@ import { speechService } from './speech.js';
 import { parseCSV, cleanMeaningTag } from './importer.js';
 import { syncManager, SyncStatus } from './sync.js';
 
-const DATA_VERSION = 21;
+const DATA_VERSION = 22;
 
 class VocabSwipeApp {
   constructor() {

@@ -66,6 +66,7 @@ export class MethodEngine {
         const needed = this.DAILY_LIMIT - activeIds.length;
         const usedSet = new Set(activeIds);
         const unseen = allWords.filter(w => (!w.status || w.status === 'unseen' || w.status === 'new') && !usedSet.has(w.id));
+        unseen.sort((a, b) => a.id - b.id);
         const newIds = unseen.slice(0, needed).map(w => w.id);
         activeIds.push(...newIds);
       }
@@ -83,16 +84,18 @@ export class MethodEngine {
       }
     }
 
-    // 2. 新規単語（unseen）で100語きっかりまで補充
+    // 2. 新規単語（unseen）で100語きっかりまで補充（金のフレーズ書籍の番号順）
     const needed = this.DAILY_LIMIT - selectedIds.length;
     if (needed > 0) {
       const usedSet = new Set(selectedIds);
       const unseen = allWords.filter(w => (!w.status || w.status === 'unseen' || w.status === 'new') && !usedSet.has(w.id));
+      unseen.sort((a, b) => a.id - b.id);
       const newIds = unseen.slice(0, needed).map(w => w.id);
       selectedIds.push(...newIds);
     }
 
-    this.shuffle(selectedIds);
+    // 書籍の番号順（1〜100、101〜200...）に整列して最初から出題
+    selectedIds.sort((a, b) => a - b);
 
     return {
       date: logicalDate,
