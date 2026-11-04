@@ -945,12 +945,18 @@ class VocabSwipeApp {
     this.currentIndex = 0;
 
     const logicalDate = engine.getLogicalDate();
+    const existingDeck = await db.getState(`deck_${logicalDate}`, null);
     const carryovers = await db.getState('carryover_ids', []);
-    this.deck = engine.generateDailyDeck(this.allWords, carryovers, null);
+
+    // 【重要】本日の100問デッキが存在する場合は、30分リセットややり直しでも単語の顔ぶれ（wordIds）を維持！
+    this.deck = engine.generateDailyDeck(this.allWords, carryovers, existingDeck);
+    if (this.deck) {
+      this.deck.results = {};
+    }
     await db.setState(`deck_${logicalDate}`, this.deck);
 
     const wordMap = new Map(this.allWords.map(w => [w.id, w]));
-    this.queue = this.deck.wordIds.map(id => wordMap.get(id)).filter(Boolean);
+    this.queue = (this.deck.wordIds || []).map(id => wordMap.get(id)).filter(Boolean);
 
     this.completeOverlay.style.display = 'none';
     this.showCurrentWord(!isAuto);
