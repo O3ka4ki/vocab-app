@@ -61,41 +61,83 @@ export class MethodEngine {
         activeIds = activeIds.slice(0, this.DAILY_LIMIT);
       }
 
-      // 100語未満の場合は新規単語(unseen)で100語きっかりまで補充
+      // 100語未満の場合は補充して必ず100語きっかりにする
       if (activeIds.length < this.DAILY_LIMIT) {
-        const needed = this.DAILY_LIMIT - activeIds.length;
         const usedSet = new Set(activeIds);
+
+        // ① 未着手(unseen)から補充
         const unseen = allWords.filter(w => (!w.status || w.status === 'unseen' || w.status === 'new') && !usedSet.has(w.id));
-        unseen.sort((a, b) => a.id - b.id);
-        const newIds = unseen.slice(0, needed).map(w => w.id);
+        const needed1 = this.DAILY_LIMIT - activeIds.length;
+        const newIds = unseen.slice(0, needed1).map(w => w.id);
         activeIds.push(...newIds);
+        newIds.forEach(id => usedSet.add(id));
+
+        // ② 未着手が足りなければ、学習中(learning)から補充！
+        if (activeIds.length < this.DAILY_LIMIT) {
+          const needed2 = this.DAILY_LIMIT - activeIds.length;
+          const learningWords = allWords.filter(w => w.status === 'learning' && !usedSet.has(w.id));
+          this.shuffle(learningWords);
+          const addIds = learningWords.slice(0, needed2).map(w => w.id);
+          activeIds.push(...addIds);
+          addIds.forEach(id => usedSet.add(id));
+        }
+
+        // ③ それでも足りなければ、暗記済み(mastered)以外の全単語から補充！
+        if (activeIds.length < this.DAILY_LIMIT) {
+          const needed3 = this.DAILY_LIMIT - activeIds.length;
+          const candidateWords = allWords.filter(w => w.status !== 'mastered' && !usedSet.has(w.id));
+          this.shuffle(candidateWords);
+          const addFinal = candidateWords.slice(0, needed3).map(w => w.id);
+          activeIds.push(...addFinal);
+        }
       }
       existingDeck.wordIds = activeIds;
       return existingDeck;
     }
 
     const selectedIds = [];
+    const usedSet = new Set();
+
     // 1. 持ち越し単語（未習得のもののみ、最大100語まで）
     for (const cid of carryoverIds) {
       if (selectedIds.length >= this.DAILY_LIMIT) break;
       const w = wordMap.get(cid);
       if (w && w.status !== 'weekly_pending' && w.status !== 'learned' && w.status !== 'mastered') {
         selectedIds.push(cid);
+        usedSet.add(cid);
       }
     }
 
-    // 2. 新規単語（unseen）で100語きっかりまで補充（金のフレーズ書籍の番号順）
-    const needed = this.DAILY_LIMIT - selectedIds.length;
-    if (needed > 0) {
-      const usedSet = new Set(selectedIds);
+    // 2. 新規・未着手単語（unseen）から補充
+    if (selectedIds.length < this.DAILY_LIMIT) {
+      const needed1 = this.DAILY_LIMIT - selectedIds.length;
       const unseen = allWords.filter(w => (!w.status || w.status === 'unseen' || w.status === 'new') && !usedSet.has(w.id));
-      unseen.sort((a, b) => a.id - b.id);
-      const newIds = unseen.slice(0, needed).map(w => w.id);
+      const newIds = unseen.slice(0, needed1).map(w => w.id);
       selectedIds.push(...newIds);
+      newIds.forEach(id => usedSet.add(id));
     }
 
-    // 書籍の番号順（1〜100、101〜200...）に整列して最初から出題
-    selectedIds.sort((a, b) => a - b);
+    // 3. 【バグ修正】未着手単語が足りない場合は、学習中（learning）から100語きっかりになるまで補充！
+    if (selectedIds.length < this.DAILY_LIMIT) {
+      const needed2 = this.DAILY_LIMIT - selectedIds.length;
+      const learningWords = allWords.filter(w => w.status === 'learning' && !usedSet.has(w.id));
+      this.shuffle(learningWords);
+      const addIds = learningWords.slice(0, needed2).map(w => w.id);
+      selectedIds.push(...addIds);
+      addIds.forEach(id => usedSet.add(id));
+    }
+
+    // 4. それでも100語未満なら、暗記済み(mastered)以外の全単語から補充！
+    if (selectedIds.length < this.DAILY_LIMIT) {
+      const needed3 = this.DAILY_LIMIT - selectedIds.length;
+      const candidateWords = allWords.filter(w => w.status !== 'mastered' && !usedSet.has(w.id));
+      this.shuffle(candidateWords);
+      const addFinal = candidateWords.slice(0, needed3).map(w => w.id);
+      selectedIds.push(...addFinal);
+    }
+
+    // 持ち越し＋学習中などの100語をシャッフル
+    this.shuffle(selectedIds);
 
     return {
       date: logicalDate,
