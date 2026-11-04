@@ -518,7 +518,7 @@ class VocabSwipeApp {
         this.cardNum.textContent = '完了';
         this.wordText.textContent = '本日のセッション達成！🎉';
         this.phoneticText.textContent = '';
-        this.meaningText.textContent = 全語が登録されています。お疲れ様でした！;
+        this.meaningText.textContent = `全${this.allWords.length}語が登録されています。お疲れ様でした！`;
         this.meaningContainer.classList.add('visible');
         this.progressBar.style.width = '100%';
         return;
