@@ -948,10 +948,14 @@ class VocabSwipeApp {
     const existingDeck = await db.getState(`deck_${logicalDate}`, null);
     const carryovers = await db.getState('carryover_ids', []);
 
-    // 【重要】本日の100問デッキが存在する場合は、30分リセットややり直しでも単語の顔ぶれ（wordIds）を維持！
+    // 【重要】本日の100問デッキが存在する場合は、単語の顔ぶれ（wordIds）を維持！
     this.deck = engine.generateDailyDeck(this.allWords, carryovers, existingDeck);
     if (this.deck) {
       this.deck.results = {};
+      // 【ご要望対応】中身の100語は変えず、出題の並び順だけをシャッフル！
+      if (this.deck.wordIds && this.deck.wordIds.length > 0) {
+        engine.shuffle(this.deck.wordIds);
+      }
     }
     await db.setState(`deck_${logicalDate}`, this.deck);
 
