@@ -7,6 +7,16 @@ import { syncManager, SyncStatus } from './sync.js';
 
 const DATA_VERSION = 22;
 
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 class VocabSwipeApp {
   constructor() {
     this.allWords = [];
@@ -553,19 +563,44 @@ class VocabSwipeApp {
     this.cardNum.textContent = `${this.currentIndex + 1} / ${this.queue.length}`;
 
     this.wordText.textContent = item.word;
-    const phoneticVal = (item.phonetic && !item.phonetic.includes('TOEIC') && !item.phonetic.includes('単語') && !item.phonetic.includes('熟語'))
-      ? item.phonetic
-      : '';
-    this.phoneticText.textContent = phoneticVal;
-    this.phoneticText.style.display = phoneticVal ? 'block' : 'none';
+
+    // 発音記号と熟語・フレーズの分離判定（表面には本物の発音記号のみ表示し、熟語や日本語は裏面へ）
+    let displayPhonetic = '';
+    let phraseText = '';
+    if (item.phonetic) {
+      const ph = item.phonetic.trim();
+      const isPosPhonetic = /^\[(?:動|名|形|副):/.test(ph);
+      const hasJa = /[\u3040-\u30ff\u4e00-\u9fff]/.test(ph);
+
+      // 日本語が含まれている（品詞ラベル除く）、または英文が3単語以上並ぶ場合は裏面用フレーズ
+      if ((hasJa && !isPosPhonetic) || (ph.split(/\s+/).length >= 3 && !ph.startsWith('['))) {
+        phraseText = ph;
+      } else if (!ph.includes('TOEIC') && !ph.includes('単語') && !ph.includes('熟語')) {
+        displayPhonetic = ph;
+      }
+    }
+
+    this.phoneticText.textContent = displayPhonetic;
+    this.phoneticText.style.display = displayPhonetic ? 'block' : 'none';
 
     this.meaningContainer.style.display = 'none';
     this.meaningText.textContent = cleanMeaningTag(item.meaning);
+
+    // 裏面の例文・フレーズ表示
+    let exampleHtml = '';
+    if (phraseText) {
+      exampleHtml += `<div class="phrase-tag" style="margin-bottom: 6px; font-weight: 600; color: #38bdf8;">📌 ${escapeHTML(phraseText)}</div>`;
+    }
     if (item.example) {
+      exampleHtml += `<div class="example-text">${escapeHTML(item.example)}</div>`;
+    }
+
+    if (exampleHtml) {
       this.exampleBox.style.display = 'block';
-      this.exampleBox.textContent = `Ex: ${item.example}`;
+      this.exampleBox.innerHTML = exampleHtml;
     } else {
       this.exampleBox.style.display = 'none';
+      this.exampleBox.innerHTML = '';
     }
 
     this.completeOverlay.style.display = 'none';
