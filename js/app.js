@@ -873,6 +873,7 @@ class VocabSwipeApp {
       const logicalDate = engine.getLogicalDate();
       this.deck = engine.generateDailyDeck(this.allWords, [], null);
       await db.setState(`deck_${logicalDate}`, this.deck);
+      await db.setState('last_day_study_deck', this.deck);
       syncManager.markDeckDirty();
 
       // クラウドへ即座に送信
@@ -898,6 +899,7 @@ class VocabSwipeApp {
       this.completeIcon.textContent = '🎯';
       this.completeTitle.textContent = '実力テスト完了！';
       this.completeDesc.innerHTML = `正解: <strong>${passed.length}</strong> 問<br>間違えた <strong>${failed.length}</strong> 語は明日の100単語デッキに組み込みました！`;
+      this.btnNextSession.textContent = '☀️ 日中スキマ学習へ進む';
       await this.updateDashboardStats();
 
     } else if (this.currentMode === AppMode.MORNING_TEST) {
@@ -963,6 +965,17 @@ class VocabSwipeApp {
       this.completeTitle.textContent = '朝のテスト完了！';
       this.completeDesc.innerHTML = `👑 <strong>${promotedToMastered}</strong> 語が【暗記済み（完全定着）】へ昇格！<br>📘 <strong>${promotedToLearned}</strong> 語が【学習済み（1次合格）】へ昇格！<br>⚠️ <strong>${failedIds.length}</strong> 語を本日の100問デッキへ持ち越し。<br><br>🔥 <strong>連続学習ストリーク: ${currentStreak}日目達成！</strong>`;
       this.btnNextSession.textContent = '☀️ 本日の日中スキマ学習を始める';
+
+      // 間違えた単語（持ち越し単語）を一覧表示
+      if (failedIds.length > 0) {
+        const failedWords = failedIds.map(id => this.allWords.find(w => w.id === id)).filter(Boolean);
+        this.wrongWordsSection.style.display = 'flex';
+        this.wrongWordsCount.textContent = `${failedWords.length} 語`;
+        this.renderWrongWordsList(failedWords);
+      } else {
+        this.wrongWordsSection.style.display = 'none';
+      }
+
       await this.updateDashboardStats();
     } else {
       this.completeIcon.textContent = '🎉';
@@ -1016,6 +1029,8 @@ class VocabSwipeApp {
       }
     }
     await db.setState(`deck_${logicalDate}`, this.deck);
+    await db.setState('last_day_study_deck', this.deck);
+    syncManager.markDeckDirty();
 
     const wordMap = new Map(this.allWords.map(w => [w.id, w]));
     this.queue = (this.deck.wordIds || []).map(id => wordMap.get(id)).filter(Boolean);
@@ -1207,6 +1222,14 @@ class VocabSwipeApp {
     });
 
     this.btnNextSession.addEventListener('click', async () => {
+      if (this.currentMode === AppMode.CONFIRMATION_TEST) {
+        // 実力確認テスト完了時: 日中スキマ学習へ移行
+        this.currentMode = AppMode.DAY_STUDY;
+        this.completeOverlay.style.display = 'none';
+        await this.setupDeck();
+        return;
+      }
+
       if (this.currentMode === AppMode.MORNING_TEST) {
         // 朝テスト完了時: 自動的に本日の日中スキマ学習へ移行
         this.currentMode = AppMode.DAY_STUDY;
